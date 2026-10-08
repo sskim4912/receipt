@@ -1,3 +1,5 @@
+import { parseReceiptText } from './cloud-ocr-parser.js';
+
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -58,13 +60,19 @@ export function parseDocumentAiDocument(document) {
     .sort((a, b) => b.confidence - a.confidence);
 
   const pick = (types) => values.find((entity) => types.includes(entity.type))?.value || '';
+  // Expense Parser may return supplier_address as an entity, but several Korean
+  // receipt layouts only expose the address in the full OCR text.
+  const textFallback = parseReceiptText(document?.text || '');
   const amountValue = pick(['total_amount', 'purchase_amount', 'total', 'amount']);
   const dateValue = pick(['receipt_date', 'purchase_date', 'transaction_date', 'date']);
   return {
-    merchantName: pick(['supplier_name', 'merchant_name', 'vendor_name', 'merchant']),
-    amount: normalizeAmount(amountValue),
-    location: pick(['supplier_address', 'merchant_address', 'vendor_address', 'address']),
-    receiptDate: isValidDate(dateValue),
+    merchantName:
+      pick(['supplier_name', 'merchant_name', 'vendor_name', 'merchant']) || textFallback.merchantName,
+    amount: normalizeAmount(amountValue) || textFallback.amount,
+    location:
+      pick(['supplier_address', 'merchant_address', 'vendor_address', 'address']) ||
+      textFallback.location,
+    receiptDate: isValidDate(dateValue) || textFallback.receiptDate,
   };
 }
 
