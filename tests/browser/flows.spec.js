@@ -1,6 +1,10 @@
 import { test, expect } from '@playwright/test';
 import { FakeFirestore } from '../fake-firestore.js';
 import { makeGate } from '../../src/lib/admin-gate.js';
+const png = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jZ1kAAAAASUVORK5CYII=',
+  'base64',
+);
 let fake;
 test.beforeEach(async ({ page }) => {
   fake = new FakeFirestore();
@@ -57,9 +61,17 @@ async function login(page) {
 async function openRow(page) {
   await page.getByRole('button', { name: '김성석 대산보쌈 상세내역', exact: true }).click();
 }
-test('필수정보를 한 화면에 직접 입력하고 사진 없이 저장', async ({ page }, info) => {
+test('사진 미리보기와 필수정보 직접 입력·사진 미전송 저장', async ({ page }, info) => {
   await start(page);
-  await expect(page.locator('input[type=file]')).toHaveCount(0);
+  const camera = page.locator('input[type=file]');
+  await expect(camera).toHaveAttribute('capture', 'environment');
+  await camera.setInputFiles({ name: 'receipt.png', mimeType: 'image/png', buffer: png });
+  await expect(
+    page.getByRole('img', { name: '브라우저에서 임시로 확인 중인 영수증' }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: '현재 사진 확대' }).click();
+  await expect(page.getByRole('img', { name: '현재 영수증 확대' })).toBeVisible();
+  await page.getByRole('button', { name: '닫기', exact: true }).click();
   await expect(page.getByLabel('업체명', { exact: true })).toBeVisible();
   await expect(page.getByLabel('영수금액', { exact: true })).toBeVisible();
   await expect(page.getByLabel('사용일자', { exact: true })).toBeVisible();
@@ -215,7 +227,7 @@ test('관리자 첫 비밀번호 설정·틀린 비밀번호·화면 구분', as
 });
 test('모바일 첫 화면에서 전체 필수 항목을 입력할 수 있음', async ({ page }, info) => {
   await start(page);
-  await expect(page.locator('input[type=file]')).toHaveCount(0);
+  await expect(page.locator('input[type=file]')).toHaveCount(1);
   await expect(page.getByLabel('사용일자', { exact: true })).toBeVisible();
   await expect(page.getByLabel('업체명', { exact: true })).toBeVisible();
   await expect(page.getByLabel('영수금액', { exact: true })).toBeVisible();

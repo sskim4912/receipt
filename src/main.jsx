@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { firebaseConfig } from './firebase-config.js';
 import { FirestoreRest } from './lib/firestore-rest.js';
 import { ReceiptRepository } from './lib/repository.js';
+import { inspectPhoto } from './lib/photo.js';
 import {
   STATUSES,
   METHODS,
@@ -274,6 +275,61 @@ function ExtraFields({ value, onChange }) {
     </>
   );
 }
+function PhotoCapture({ photo, camera, onChange, onError }) {
+  const [large, setLarge] = useState(false);
+  return (
+    <div className="photo-panel">
+      {photo ? (
+        <button
+          className="preview-button"
+          onClick={() => setLarge(true)}
+          aria-label="현재 사진 확대"
+          type="button"
+        >
+          <img
+            className="receipt-photo"
+            src={photo.url}
+            alt="브라우저에서 임시로 확인 중인 영수증"
+          />
+        </button>
+      ) : (
+        <p className="muted">촬영한 영수증을 보며 업체명·금액·사용일자를 입력하세요.</p>
+      )}
+      <input
+        ref={camera}
+        className="visually-hidden"
+        type="file"
+        accept="image/*"
+        capture="environment"
+        aria-label="영수증 사진 촬영"
+        onChange={async (e) => {
+          const file = e.target.files?.[0];
+          e.target.value = '';
+          if (!file) return;
+          try {
+            onChange(await inspectPhoto(file));
+          } catch (error) {
+            onError(error.message);
+          }
+        }}
+      />
+      <button
+        className="button secondary full"
+        type="button"
+        onClick={() => camera.current?.click()}
+      >
+        {photo ? '다시 촬영' : '영수증 사진 촬영'}
+      </button>
+      <small>사진은 현재 브라우저에서만 미리보기로 확인하며, 인식·전송·저장하지 않습니다.</small>
+      {large && (
+        <Modal title="현재 영수증 사진" wide onClose={() => setLarge(false)}>
+          <img className="modal-image" src={photo.url} alt="현재 영수증 확대" />
+          <p className="muted">이 사진은 브라우저를 벗어나지 않으며 등록 후 사라집니다.</p>
+        </Modal>
+      )}
+    </div>
+  );
+}
 function App() {
   const [screen, setScreen] = useState('manual'),
     [login, setLogin] = useState(false),
@@ -281,13 +337,22 @@ function App() {
     [error, setError] = useState(''),
     [core, setCore] = useState({ ...EMPTY_CORE }),
     [extras, setExtras] = useState({ ...EMPTY_EXTRAS }),
+    [photo, setPhoto] = useState(null),
     [mode, setMode] = useState('manual'),
     [saved, setSaved] = useState(null),
     [deleteDraft, setDeleteDraft] = useState(false);
-  const lock = useRef(false),
+  const camera = useRef(),
+    lock = useRef(false),
     requestId = useRef(crypto.randomUUID());
+  useEffect(
+    () => () => {
+      if (photo) URL.revokeObjectURL(photo.url);
+    },
+    [photo],
+  );
   function reset() {
     setScreen('manual');
+    setPhoto(null);
     setCore({ ...EMPTY_CORE });
     setExtras({ ...EMPTY_EXTRAS });
     setMode('manual');
@@ -339,6 +404,7 @@ function App() {
       if (!receipt)
         throw new Error('저장 결과를 확인할 수 없습니다. 입력내용을 유지한 채 다시 시도해주세요.');
       setSaved(receipt);
+      setPhoto(null);
       setScreen('success');
     } catch (err) {
       setError(inputError(err));
@@ -377,8 +443,8 @@ function App() {
         </button>
       </header>
       <div className="dev-banner">
-        Spark 테스트 · 영수증 사진 미수집 · 공개 Firestore 규칙 사용 · 관리자 비밀번호는 화면
-        잠금용입니다.
+        Spark 테스트 · 사진은 브라우저 임시 미리보기만 · 인식/전송/저장 안 함 · 공개 Firestore 규칙
+        · 관리자 암호는 화면 잠금용
       </div>
       {screen === 'admin' ? (
         <Admin
@@ -417,10 +483,19 @@ function App() {
             <section className="card">
               <h2>영수증 사용내역 입력</h2>
               <p className="muted">
-                업체명, 금액, 사용일자와 필수 사용정보를 입력해주세요. 영수증 사진은 업로드하거나
-                저장하지 않습니다.
+                사진을 촬영해 원본을 확인하면서 업체명, 금액, 사용일자와 필수 사용정보를
+                입력해주세요.
               </p>
               <form onSubmit={confirm}>
+                <PhotoCapture
+                  photo={photo}
+                  camera={camera}
+                  onChange={(value) => {
+                    setPhoto(value);
+                    setError('');
+                  }}
+                  onError={setError}
+                />
                 <CoreFields value={core} onChange={setCore} simple team={mode === 'team'} />
                 <ExtraFields value={extras} onChange={setExtras} />
                 <ErrorBox message={error} />
@@ -436,6 +511,15 @@ function App() {
           {screen === 'confirm' && (
             <section className="card compact">
               <h2>등록 내용을 확인해주세요.</h2>
+              <PhotoCapture
+                photo={photo}
+                camera={camera}
+                onChange={(value) => {
+                  setPhoto(value);
+                  setError('');
+                }}
+                onError={setError}
+              />
               <Summary
                 core={{ ...core, amount: core.amount ? Number(core.amount) : null }}
                 extras={extras}
@@ -514,6 +598,7 @@ function App() {
           onClose={() => setLogin(false)}
           onSuccess={() => {
             setLogin(false);
+            setPhoto(null);
             setScreen('admin');
             setError('');
           }}
