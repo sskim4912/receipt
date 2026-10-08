@@ -111,17 +111,20 @@ export function parseReceiptText(text = '') {
   });
   if (new Set(businessNumbers).size === 1) fields.businessNumber = businessNumbers[0];
   const businessMerchant = lines
-    .map((line) => {
+    .map((line, index) => {
       const match = line.match(/(\d{3}\s*-\s*\d{2}\s*-\s*\d{5})/);
       if (!match) return null;
       const before = line.slice(0, match.index).trim();
       const after = line.slice(match.index + match[0].length).trim();
       const clean = (value) => value.replace(/^[*#=:[\]·\s]+|[*#=:[\]·\s]+$/g, '').trim();
-      const candidates = [clean(before), clean(after)].filter(
+      const adjacent = [lines[index - 1] || '', lines[index + 1] || ''];
+      const candidates = [clean(before), clean(after), ...adjacent.map(clean)].filter(
         (value) =>
           value.length >= 2 &&
           /[가-힣A-Za-z]/.test(value) &&
-          !/(사업자|등록번호|TEL|전화|주소|대표|번호)/i.test(value),
+          !/(사업자|등록번호|TEL|전화|주소|대표|번호|영수증|매출|카드|승인|거래|주문|합계|부가세|공급가|세액|금액)/i.test(
+            value,
+          ),
       );
       return candidates[0] || null;
     })
@@ -129,27 +132,17 @@ export function parseReceiptText(text = '') {
   const explicitMerchant = lines
     .map((line) =>
       line.match(
-        /^\[?(?:상\s*호(?:\s*명)?|매\s*장\s*명|가\s*맹\s*점(?:\s*명)?|업\s*체\s*명)\]?\s*[:：]?\s*(.+)$/,
+        /^\[?(?:상\s*호(?:\s*명)?|매\s*장\s*명|가\s*맹\s*점(?:\s*명)?|업\s*체\s*명|MERCHANT)\]?\s*[:：]?\s*(.+)$/i,
       ),
     )
     .find(Boolean);
-  if (explicitMerchant) fields.merchantName = explicitMerchant[1].trim().slice(0, 160);
-  else if (businessMerchant) fields.merchantName = businessMerchant.slice(0, 160);
-  else {
-    const heading = lines
-      .slice(0, 5)
-      .find(
-        (line) =>
-          /[가-힣A-Za-z]/.test(line) &&
-          !/영수증|매출|전표|고객|보관|사업자|대표|주소|전화|TEL|RECEIPT|INVOICE|VISA|MASTER|카드|승인|\d{2,}/i.test(
-            line,
-          ) &&
-          !/^[\s*#=._-]+$/.test(line) &&
-          line.length >= 2 &&
-          line.length <= 80,
-      );
-    if (heading) fields.merchantName = heading.replace(/^[*#=\s]+|[*#=\s]+$/g, '');
-  }
+  if (explicitMerchant) {
+    const value = explicitMerchant[1].trim().slice(0, 160);
+    if (/[가-힣A-Za-z]/.test(value) && !/^[^가-힣A-Za-z]*$/.test(value))
+      fields.merchantName = value;
+  } else if (businessMerchant) fields.merchantName = businessMerchant.slice(0, 160);
+  // Never promote an arbitrary top line to the merchant name. Unlabeled text
+  // is only accepted when it appears next to a business registration number.
   const complete = ['receiptDate', 'receiptTime', 'merchantName', 'amount'].every(
     (key) => fields[key],
   );

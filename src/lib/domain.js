@@ -8,8 +8,8 @@ export const STATUSES = {
 export const METHODS = { manual: '수기입력', team: '관리팀 제출' };
 export const CATEGORIES = ['식비', '교통비', '숙박비', '자재·소모품', '기타'];
 export const LABELS = {
-  receiptDate: '승인일자',
-  receiptTime: '승인시간',
+  receiptDate: '승인일시',
+  receiptTime: '승인일시',
   merchantName: '업체명',
   amount: '영수금액',
   approvalNumber: '승인번호(선택)',
@@ -85,7 +85,7 @@ export const extrasSchema = z.object({
 const sharedCore = {
   receiptDate: z.union([
     z.literal('').transform(() => null),
-    z.string().refine(validDate, '승인일자를 확인해주세요.'),
+    z.string().refine(validDate, '승인일시의 날짜를 확인해주세요.'),
   ]),
   receiptTime: z.union([
     z.literal(''),
@@ -125,8 +125,8 @@ export function validateInput(core, extras, mode = 'manual') {
   const extra = extrasSchema.parse(extras),
     base = coreBase.parse(core);
   if (mode === 'manual') {
-    if (!base.receiptDate) throw new Error('승인일자를 입력해주세요.');
-    if (!base.receiptTime) throw new Error('승인시간을 입력해주세요.');
+    if (!base.receiptDate) throw new Error('승인일시를 입력해주세요.');
+    if (!base.receiptTime) throw new Error('승인일시를 입력해주세요.');
     if (!base.merchantName) throw new Error('업체명을 입력해주세요.');
     if (base.amount === null || base.amount <= 0)
       throw new Error('영수금액은 1원 이상 입력해주세요.');
@@ -194,7 +194,6 @@ export function toForm(r) {
 const csvFields = [
   'receiptId',
   'receiptDate',
-  'receiptTime',
   'merchantName',
   'businessNumber',
   'category',
@@ -223,7 +222,15 @@ export function csv(rows) {
       csvFields.map((k) => cell(LABELS[k] || '등록번호')).join(','),
       ...rows.map((r) =>
         csvFields
-          .map((k) => cell(['status', 'registrationMethod'].includes(k) ? display(r, k) : r[k]))
+          .map((k) =>
+            cell(
+              k === 'receiptDate'
+                ? [r.receiptDate, r.receiptTime].filter(Boolean).join(' ')
+                : ['status', 'registrationMethod'].includes(k)
+                  ? display(r, k)
+                  : r[k],
+            ),
+          )
           .join(','),
       ),
     ].join('\r\n')

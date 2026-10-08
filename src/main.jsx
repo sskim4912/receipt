@@ -36,17 +36,14 @@ function Badge({ status }) {
 function Summary({ core }) {
   return (
     <dl className="core-summary">
-      {[
-        'merchantName',
-        'businessNumber',
-        'receiptDate',
-        'receiptTime',
-        'amount',
-        'approvalNumber',
-      ].map((k) => (
+      {['merchantName', 'businessNumber', 'receiptDate', 'amount', 'approvalNumber'].map((k) => (
         <div key={k}>
           <dt>{LABELS[k]}</dt>
-          <dd className={core[k] == null ? 'unknown' : ''}>{display(core, k)}</dd>
+          <dd className={core[k] == null ? 'unknown' : ''}>
+            {k === 'receiptDate'
+              ? [core.receiptDate, core.receiptTime].filter(Boolean).join(' ')
+              : display(core, k)}
+          </dd>
         </div>
       ))}
     </dl>
@@ -57,14 +54,7 @@ function CoreFields({ value, onChange, team = false }) {
   return (
     <>
       <div className="form-grid">
-        {[
-          'merchantName',
-          'businessNumber',
-          'receiptDate',
-          'receiptTime',
-          'amount',
-          'approvalNumber',
-        ].map((k) => (
+        {['merchantName', 'businessNumber', 'receiptDate', 'amount', 'approvalNumber'].map((k) => (
           <Field
             key={k}
             label={LABELS[k]}
@@ -79,15 +69,21 @@ function CoreFields({ value, onChange, team = false }) {
           >
             <input
               aria-label={k === 'approvalNumber' ? '승인번호' : LABELS[k]}
-              type={k === 'receiptDate' ? 'date' : k === 'receiptTime' ? 'time' : 'text'}
+              type={k === 'receiptDate' ? 'datetime-local' : 'text'}
               inputMode={['amount', 'approvalNumber'].includes(k) ? 'numeric' : undefined}
-              value={value[k]}
+              value={
+                k === 'receiptDate'
+                  ? value.receiptDate && value.receiptTime
+                    ? `${value.receiptDate}T${value.receiptTime}`
+                    : ''
+                  : value[k]
+              }
               required={!team && !['businessNumber', 'approvalNumber'].includes(k)}
               disabled={
                 k === 'approvalNumber' &&
                 (team ? value.approvalState !== 'present' : value.approvalState === 'absent')
               }
-              maxLength={k === 'merchantName' ? 160 : k === 'approvalNumber' ? 40 : 12}
+              maxLength={k === 'merchantName' ? 160 : k === 'approvalNumber' ? 40 : undefined}
               pattern={k === 'amount' ? '[0-9]+' : undefined}
               placeholder={k === 'amount' ? '영수금액·결제금액·매출합계·승인금액' : undefined}
               onChange={(e) => {
@@ -98,7 +94,10 @@ function CoreFields({ value, onChange, team = false }) {
                     approvalNumber: next,
                     approvalState: next ? 'present' : 'unreadable',
                   });
-                else set(k, next);
+                else if (k === 'receiptDate') {
+                  const [date = '', time = ''] = next.split('T');
+                  onChange({ ...value, receiptDate: date, receiptTime: time });
+                } else set(k, next);
               }}
             />
           </Field>
@@ -390,18 +389,13 @@ function App() {
         setMode('manual');
         setScreen('manual');
       } else {
-        const count = Math.min(3, failures + 1);
+        const count = failures + 1;
         setAttempts(count);
+        setMode('manual');
+        setScreen('manual');
         setPhotoNotice(
-          '일부 항목을 읽지 못했습니다. 읽힌 값은 입력란에 채웠습니다. 재시도하거나 다시 촬영해주세요. 3회 실패 시 직접 입력으로 전환합니다.',
+          '한 번의 자동 인식으로 확인하지 못한 항목은 비워두었습니다. 영수증 원본을 보고 직접 입력해주세요.',
         );
-        if (count >= 3) {
-          setMode('manual');
-          setScreen('manual');
-          setPhotoNotice(
-            '인식 오류가 3회 발생해 직접 입력으로 전환했습니다. 입력이 어려우면 관리팀에 제출해주세요.',
-          );
-        }
       }
     } catch (err) {
       if (err.name === 'AbortError') {
@@ -409,15 +403,11 @@ function App() {
         setPhotoNotice('자동 인식을 취소했습니다. 다시 시도하거나 재촬영해주세요.');
       }
       if (err.name !== 'AbortError') {
-        const count = Math.min(3, failures + 1);
+        const count = failures + 1;
         setAttempts(count);
-        if (count >= 3) {
-          setMode('manual');
-          setScreen('manual');
-          setPhotoNotice(
-            '인식 오류가 3회 발생해 직접 입력으로 전환했습니다. 입력이 어려우면 관리팀에 제출해주세요.',
-          );
-        }
+        setMode('manual');
+        setScreen('manual');
+        setPhotoNotice('자동 인식을 완료하지 못했습니다. 영수증 원본을 보고 직접 입력해주세요.');
       }
       setError(
         err instanceof Error
@@ -427,18 +417,6 @@ function App() {
     } finally {
       ocrController.current = null;
       setOcrProgress('');
-    }
-  }
-  async function retryOcr() {
-    if (!photo || lock.current || attempts >= 3) return;
-    lock.current = true;
-    setBusy(true);
-    setError('');
-    try {
-      await runOcr(photo, attempts);
-    } finally {
-      lock.current = false;
-      setBusy(false);
     }
   }
   function team() {
@@ -618,18 +596,12 @@ function App() {
               {photo && <Preview photo={photo} />}
               <div className="notice">
                 {photoNotice ||
-                  '화면의 촬영 버튼으로 다시 찍거나 자동 인식을 재시도할 수 있습니다.'}
-                {attempts > 0 && <small>인식 오류 {attempts}/3</small>}
+                  '촬영한 영수증은 한 번 자동 인식하고, 확인하지 못한 값은 직접 입력으로 안내합니다.'}
               </div>
-              {photo && !busy && (
-                <div className="upload-actions">
-                  <button className="button secondary" disabled={attempts >= 3} onClick={retryOcr}>
-                    자동 인식 재시도
-                  </button>
-                  <button className="button secondary" onClick={() => camera.current.click()}>
-                    다시 촬영
-                  </button>
-                </div>
+              {photo && !busy && screen === 'photo' && (
+                <button className="button secondary" onClick={() => camera.current.click()}>
+                  다시 촬영
+                </button>
               )}
               <div className="photo-tips">
                 <h3>촬영 전 확인해주세요</h3>
@@ -659,7 +631,6 @@ function App() {
               {photoNotice && (
                 <div className="notice" role="status">
                   {photoNotice}
-                  {attempts > 0 && <small>인식 오류 {attempts}/3</small>}
                 </div>
               )}
               <div className="result-layout">
@@ -669,16 +640,6 @@ function App() {
                   <button className="button primary full">입력내용 확인</button>
                   <button type="button" className="button text full" onClick={team}>
                     입력이 어려우면 관리팀에 제출
-                  </button>
-                  <button
-                    type="button"
-                    className="button text full"
-                    onClick={() => {
-                      setScreen('photo');
-                      setError('');
-                    }}
-                  >
-                    사진 다시 확인
                   </button>
                 </form>
               </div>
@@ -927,12 +888,18 @@ function Detail({ r }) {
   return (
     <>
       <dl className="detail-grid">
-        {Object.keys(LABELS).map((k) => (
-          <div key={k}>
-            <dt>{LABELS[k]}</dt>
-            <dd>{display(r, k) || '—'}</dd>
-          </div>
-        ))}
+        {Object.keys(LABELS)
+          .filter((k) => k !== 'receiptTime')
+          .map((k) => (
+            <div key={k}>
+              <dt>{LABELS[k]}</dt>
+              <dd>
+                {k === 'receiptDate'
+                  ? [r.receiptDate, r.receiptTime].filter(Boolean).join(' ') || '—'
+                  : display(r, k) || '—'}
+              </dd>
+            </div>
+          ))}
       </dl>
       <p className="file-label">등록번호: {r.receiptId}</p>
       <div className="notice">

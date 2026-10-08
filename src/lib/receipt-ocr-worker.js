@@ -37,16 +37,15 @@ self.onmessage = async ({ data: { image, base } }) => {
         preserve_interword_spaces: '1',
       });
       const { data } = await worker.recognize(new Uint8Array(image));
-      candidates.push({ parsed: parseReceiptText(data.text), confidence: data.confidence || 0 });
+      candidates.push(parseReceiptText(data.text));
       self.postMessage({ type: 'progress', message: `영수증 글자 읽는 중 ${index + 1}/2` });
     }
-    const best = [...candidates].sort(
-      (a, b) =>
-        Object.keys(b.parsed.fields).length * 12 +
-        b.confidence -
-        (Object.keys(a.parsed.fields).length * 12 + a.confidence),
-    )[0];
-    const fields = { ...best.parsed.fields };
+    const allKeys = new Set(candidates.flatMap(({ fields }) => Object.keys(fields)));
+    const fields = {};
+    for (const key of allKeys) {
+      const values = candidates.map(({ fields: candidateFields }) => candidateFields[key]);
+      if (values[0] && values[0] === values[1]) fields[key] = values[0];
+    }
     self.postMessage({
       type: 'result',
       result: {

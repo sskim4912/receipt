@@ -26,7 +26,7 @@ test('Korean receipt: labeled totals, spaced labels, date and leading-zero appro
 });
 test('English receipt and next-line total', () => {
   const result = parseReceiptText(
-    'AURORA CAFE\nDATE 26/10/08 18:32\nBUSINESS NUMBER: 1234567890\nTOTAL\n12,000\nAPPROVAL NO: 00001234',
+    'MERCHANT: AURORA CAFE\nDATE 26/10/08 18:32\nBUSINESS NUMBER: 1234567890\nTOTAL\n12,000\nAPPROVAL NO: 00001234',
   );
   assert.equal(result.complete, true);
   assert.equal(result.fields.merchantName, 'AURORA CAFE');
@@ -117,6 +117,12 @@ test('Unknown approval is never assumed absent; random large numbers and VAT are
   assert.equal(result.fields.approvalState, undefined);
   assert.equal(result.fields.approvalNumber, undefined);
   assert.equal(result.fields.merchantName, undefined);
+});
+test('Unlabeled OCR debris is not guessed as a merchant name', () => {
+  assert.equal(
+    parseReceiptText('번 번호: SUES\n2026-09-28\n결제금액 11,500').fields.merchantName,
+    undefined,
+  );
 });
 test('Conflicting dates and equally prioritized payment totals are left blank', () => {
   const result = parseReceiptText(
