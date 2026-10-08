@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 100" role="img" aria-labelledby="title">
+  <title id="title">GS건설</title>
+  <defs>
+    <linearGradient id="orange" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f7bf28" />
+      <stop offset="1" stop-color="#f26735" />
+    </linearGradient>
+    <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3869a5" />
+      <stop offset="1" stop-color="#0d78a8" />
+    </linearGradient>
+    <linearGradient id="green" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#a5c83a" />
+      <stop offset="1" stop-color="#00a482" />
+    </linearGradient>
+  </defs>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="9">
+    <path d="M12 42C18 15 45 4 68 16c12 6 20 12 29 2" stroke="url(#orange)" />
+    <path d="M12 43c-3 16 6 27 18 27 13 0 23-11 33-18 11-8 21-12 34-7" stroke="url(#blue)" />
+    <path d="M13 48c0 24 16 42 39 42 23 0 42-15 45-37" stroke="url(#green)" />
+    <path d="M24 50c7 12 17 19 29 17 12-2 21-13 31-20 5-4 10-6 15-5" stroke="#00a897" />
+  </g>
+  <text x="108" y="73" fill="#2868a6" font-family="Arial, sans-serif" font-size="67" font-weight="750" letter-spacing="-4">GS</text>
+  <text x="198" y="70" fill="#929292" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="43" font-weight="700" letter-spacing="-2">건설</text>
+</svg>

@@ -92,21 +92,16 @@ fieldset {
 .brand {
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 20px;
 }
-.gs-mark {
-  font-size: 29px;
-  font-weight: 850;
-  color: var(--blue);
-  letter-spacing: -1px;
-}
-.gs-mark > span {
-  color: #2c455c;
-  font-size: 19px;
-  margin-left: 5px;
+.gs-logo {
+  display: block;
+  width: 156px;
+  height: 60px;
+  object-fit: contain;
 }
 .brand-divider {
-  height: 28px;
+  height: 34px;
   width: 1px;
   background: #dce3e9;
 }
@@ -1019,17 +1014,14 @@ footer span {
     padding: 0 18px;
   }
   .brand {
-    gap: 11px;
+    gap: 9px;
   }
-  .gs-mark {
-    font-size: 23px;
-  }
-  .gs-mark > span {
-    font-size: 14px;
-    margin-left: 3px;
+  .gs-logo {
+    width: 112px;
+    height: 44px;
   }
   .brand-divider {
-    height: 25px;
+    height: 24px;
   }
   .brand strong {
     font-size: 13px;
@@ -1278,6 +1270,21 @@ footer span {
   footer {
     padding: 22px;
     font-size: 10px;
+  }
+}
+@media (max-width: 360px) {
+  .site-header {
+    padding: 0 12px;
+  }
+  .brand {
+    gap: 6px;
+  }
+  .gs-logo {
+    width: 92px;
+    height: 36px;
+  }
+  .brand strong {
+    font-size: 12px;
   }
 }
 @media (prefers-reduced-motion: reduce) {

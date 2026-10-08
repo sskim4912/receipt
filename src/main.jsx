@@ -22,6 +22,7 @@ import { inspectPhoto } from './lib/photo.js';
 import { recognizeReceipt } from './lib/receipt-ocr.js';
 import { makeGate, verifyGate } from './lib/admin-gate.js';
 import { Icon, Modal, Field, ErrorBox } from './ui.jsx';
+import gsLogo from './assets/gs-construction-logo.svg';
 import './styles.css';
 const repo = new ReceiptRepository(new FirestoreRest(firebaseConfig));
 const statusKeys = Object.keys(STATUSES);
@@ -513,11 +514,9 @@ function App() {
           className="brand brand-button"
           onClick={() => navigate('upload')}
           disabled={busy}
-          aria-label="직원 등록화면"
+          aria-label="GS건설 영수증 등록화면"
         >
-          <span className="gs-mark">
-            GS<span>건설</span>
-          </span>
+          <img className="gs-logo" src={gsLogo} alt="GS건설" />
           <span className="brand-divider" />
           <div>
             <strong>Aurora Project</strong>
