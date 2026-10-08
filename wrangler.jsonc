@@ -4,9 +4,9 @@
   "main": "src/worker.js",
   "compatibility_date": "2026-10-08",
   "vars": {
-    "DOCUMENT_AI_PROJECT_ID": "api-for-anythingllm-1",
-    "DOCUMENT_AI_LOCATION": "us",
-    "DOCUMENT_AI_PROCESSOR_ID": "e57b60674ad106a3"
+    "GOOGLE_CLOUD_PROJECT_ID": "api-for-anythingllm-1",
+    "VERTEX_AI_LOCATION": "us-central1",
+    "VERTEX_AI_MODEL": "gemini-2.5-flash-lite"
   },
   "assets": {
     "directory": "./docs",

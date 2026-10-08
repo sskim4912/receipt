@@ -1,31 +1,27 @@
-# Cloudflare Workers와 Google Document AI 배포
+# Cloudflare Workers와 Cloud Vision·Vertex AI 배포
 
 ## Cloudflare 프로젝트 설정
 
-Cloudflare의 Workers & Pages에서 GitHub 저장소 `sskim4912/receipt`를 연결합니다.
+Cloudflare Workers & Pages에서 GitHub 저장소 `sskim4912/receipt`를 연결합니다.
 
 - Project name: `receipt`
 - Build command: `npm run build`
 - Deploy command: `npx wrangler deploy`
 - Preview command: Cloudflare 기본값을 유지합니다.
-- Preview builds: 켜도 됩니다.
-- Cloudflare Access: 직원이 공개 사이트를 이용하는 현재 흐름에서는 끕니다.
 
-`wrangler.jsonc`가 Worker 진입 파일 `src/worker.js`와 정적 파일 디렉터리 `docs/`를 설정합니다. Vite 빌드가 `docs/`를 만든 뒤 Wrangler가 Worker와 정적 자산을 배포합니다. Cloudflare 배포에서는 앱이 도메인 루트에서 실행되며 `/api/document-ai`가 같은 Worker로 전달됩니다.
+`wrangler.jsonc`가 Worker 진입 파일 `src/worker.js`와 정적 파일 디렉터리 `docs/`를 설정합니다. `/api/receipt-ocr` 요청은 Worker가 처리합니다.
 
-## Google Cloud Document AI 설정
+## Google Cloud 설정
 
-1. Google Cloud에서 Document AI API를 활성화하고 Expense Parser 프로세서를 생성합니다.
-2. 프로세서가 있는 프로젝트에서 서비스 계정을 생성하고 `Document AI API User` 역할을 부여합니다.
-3. 서비스 계정 JSON 키를 생성합니다. JSON 파일을 저장소나 브라우저에 넣지 않습니다.
-4. 프로젝트 ID·위치·프로세서 ID는 `wrangler.jsonc`의 `vars`에 설정되어 있으므로, 실제 프로세서 값을 확인하고 필요하면 해당 파일을 수정합니다.
-5. Worker의 Variables and Secrets 메뉴에서 `DOCUMENT_AI_SERVICE_ACCOUNT_JSON`을 Secret으로 추가하고 JSON 파일의 전체 내용을 값으로 넣습니다. Variable 유형으로 등록하지 않습니다.
-6. 저장한 뒤 Worker를 다시 배포합니다. Worker build는 `wrangler.jsonc`를 기준으로 배포하므로 일반 변수는 이 파일에서 관리합니다.
+1. 사용할 Google Cloud 프로젝트에서 Cloud Vision API와 Vertex AI API를 활성화합니다.
+2. 서비스 계정에 API 사용 권한을 부여합니다. Vertex AI에는 `Vertex AI User` 역할(`roles/aiplatform.user`)이 필요합니다. API 사용량 권한이 필요하면 `Service Usage Consumer`(`roles/serviceusage.serviceUsageConsumer`)도 부여합니다.
+3. 서비스 계정 JSON 키를 만들되 저장소나 브라우저에 넣지 않습니다.
+4. Cloudflare의 `receipt` Worker Production 환경에서 Secret `GOOGLE_SERVICE_ACCOUNT_JSON`을 만들고 JSON 키 전체를 값으로 입력합니다.
+5. `wrangler.jsonc`의 `GOOGLE_CLOUD_PROJECT_ID`, `VERTEX_AI_LOCATION`, `VERTEX_AI_MODEL` 값을 Google Cloud 설정에 맞게 확인합니다.
+6. 저장소 `main`에 새 커밋을 올려 배포를 촉발하고 새 배포를 확인합니다.
 
-Worker는 서비스 계정 키로 Google OAuth 토큰을 발급하고, 사진을 메모리에 받아 `:process` API로 전달합니다. 이미지는 Cloudflare 저장소나 Firestore에 기록하지 않습니다. 지원되는 JPEG, PNG, WebP, TIFF, PDF만 전달하며 20MB를 넘는 파일은 거부합니다.
+기존 `DOCUMENT_AI_SERVICE_ACCOUNT_JSON` Secret 이름은 이전 호환을 위해 코드에서 읽을 수 있습니다. 새 배포 설정에서는 `GOOGLE_SERVICE_ACCOUNT_JSON`을 사용하세요. 사진은 Worker 메모리에서 처리되며 Firebase Storage나 Firestore에 저장하지 않습니다.
 
-실제 OCR 응답은 Google Cloud 프로젝트, 프로세서 위치·ID, 서비스 계정 권한이 설정된 뒤 확인할 수 있습니다. Document AI 비용과 할당량은 Cloudflare 무료 플랜 및 Firebase Spark와 별도입니다. 한국어 영수증에서 필요한 엔터티가 반환되는지도 실제 샘플로 검증해야 합니다.
+Cloud Vision과 Vertex AI는 Firebase Spark 및 Cloudflare 무료 플랜과 별도의 Google Cloud 요금·쿼터를 적용받습니다. Vertex AI 호출은 Vision OCR이 끝난 뒤 실행되므로 품질 향상을 기대할 수 있지만 지연 시간이 늘어날 수 있습니다.
 
-## 이전 주소
-
-기존 GitHub Pages 주소는 `https://sskim4912.github.io/receipt/`입니다. Cloudflare Worker에 Document AI 설정을 완료하고 실제 호출을 확인한 다음 새 `workers.dev` 주소로 전환합니다.
+기존 GitHub Pages 주소는 `https://sskim4912.github.io/receipt/`입니다. Worker를 통해 Vision과 Vertex AI가 실제 호출되는지 확인한 뒤 배포 주소를 사용하세요.

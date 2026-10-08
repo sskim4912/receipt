@@ -4,7 +4,7 @@ import { firebaseConfig } from './firebase-config.js';
 import { FirestoreRest } from './lib/firestore-rest.js';
 import { ReceiptRepository } from './lib/repository.js';
 import { inspectPhoto } from './lib/photo.js';
-import { recognizeReceiptWithDocumentAI } from './lib/document-ai.js';
+import { recognizeReceipt } from './lib/cloud-vision.js';
 import {
   STATUSES,
   METHODS,
@@ -324,8 +324,8 @@ function PhotoCapture({ photo, camera, onChange, onError, ocrMessage }) {
         {photo ? '다시 촬영' : '영수증 사진 촬영'}
       </button>
       <small>
-        사진은 현재 브라우저에서 임시 처리합니다. 촬영한 사진은 OCR을 위해 Google Document AI에
-        전송되며 Firebase에는 저장하지 않습니다.
+        사진은 Cloud Vision OCR과 Vertex AI 판독을 위해 일시 전송되며 Firebase에는 저장하지
+        않습니다.
       </small>
       {ocrMessage && (
         <p className="ocr-status" role="status">
@@ -383,9 +383,9 @@ function App() {
     setError('');
     const controller = new AbortController();
     ocrRequest.current = controller;
-    setOcrMessage('Google Document AI로 영수증을 읽는 중입니다…');
+    setOcrMessage('Cloud Vision OCR과 Vertex AI로 영수증을 읽는 중입니다…');
     try {
-      const recognized = await recognizeReceiptWithDocumentAI(value.file, {
+      const recognized = await recognizeReceipt(value.file, {
         signal: controller.signal,
       });
       if (controller.signal.aborted) return;
@@ -407,7 +407,7 @@ function App() {
     } catch (err) {
       if (!controller.signal.aborted) {
         setOcrMessage(
-          `Document AI 판독에 실패했습니다. 사진을 확인하며 직접 입력해주세요. (${err.message})`,
+          `영수증 판독에 실패했습니다. 사진을 확인하며 직접 입력해주세요. (${err.message})`,
         );
       }
     }
@@ -489,7 +489,7 @@ function App() {
         </button>
       </header>
       <div className="dev-banner">
-                Spark 테스트 · 사진은 Document AI 처리에만 사용 · Firebase 저장 안 함 · 공개 Firestore
+                Spark 테스트 · 사진은 OCR·AI 판독에만 사용 · Firebase 저장 안 함 · 공개 Firestore
         규칙 · 관리자 암호는 화면 잠금용
       </div>
       {screen === 'admin' ? (
