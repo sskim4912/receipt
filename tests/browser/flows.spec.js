@@ -122,6 +122,7 @@ test('정상 직접 입력·잘못된 인원 차단·조회·기간/사용자 �
     .locator('.success-card')
     .getByRole('button', { name: '처리상태 조회', exact: true })
     .click();
+  await expect(page.getByLabel('등록번호', { exact: true })).toHaveCount(0);
   await page.getByLabel('조회할 사용자 이름').fill('김성석');
   await page.getByRole('button', { name: '조회', exact: true }).click();
   await expect(page.getByText('수기입력·확인필요', { exact: true })).toBeVisible();

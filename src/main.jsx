@@ -751,7 +751,6 @@ function Detail({ r }) {
 function History({ onBack }) {
   const [name, setName] = useState(''),
     [id, setId] = useState(''),
-    [number, setNumber] = useState(''),
     [rows, setRows] = useState([]),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
@@ -763,8 +762,7 @@ function History({ onBack }) {
     setBusy(true);
     setError('');
     try {
-      const result = number.trim() ? await repo.get(number.trim()) : null;
-      setRows(number.trim() ? (result ? [result] : []) : await repo.byEmployee(name, id));
+      setRows(await repo.byEmployee(name, id));
       setSearched(true);
     } catch (e) {
       setError(inputError(e));
@@ -777,7 +775,7 @@ function History({ onBack }) {
       <div className="page-intro">
         <span className="eyebrow">직원 화면</span>
         <h1>처리상태 조회</h1>
-        <p>사용자 이름 또는 등록번호로 현재 상태를 확인하세요.</p>
+        <p>사용자 이름으로 현재 상태를 확인하세요. 동명이인은 사번으로 구분할 수 있습니다.</p>
       </div>
       <section className="card history-card">
         <form onSubmit={search}>
@@ -786,7 +784,7 @@ function History({ onBack }) {
             <input
               aria-label="조회할 사용자 이름"
               value={name}
-              required={!number.trim()}
+              required
               maxLength={160}
               onChange={(e) => setName(e.target.value)}
             />
@@ -798,15 +796,6 @@ function History({ onBack }) {
               value={id}
               maxLength={40}
               onChange={(e) => setId(e.target.value)}
-            />
-          </label>
-          <label className="field">
-            <span>또는 등록번호</span>
-            <input
-              aria-label="등록번호"
-              value={number}
-              maxLength={100}
-              onChange={(e) => setNumber(e.target.value)}
             />
           </label>
           <button className="button primary full" disabled={busy}>
