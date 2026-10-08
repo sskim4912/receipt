@@ -4,7 +4,7 @@ import { firebaseConfig } from './firebase-config.js';
 import { FirestoreRest } from './lib/firestore-rest.js';
 import { ReceiptRepository } from './lib/repository.js';
 import { inspectPhoto } from './lib/photo.js';
-import { CLOUD_VISION_API_KEY } from './cloud-vision-config.js';
+import { AIzaSyAQjihQA8qDOEoJ20xfWS9Wd8wKpfENNSU } from './cloud-vision-config.js';
 import { recognizeReceipt } from './lib/cloud-vision.js';
 import {
   STATUSES,
