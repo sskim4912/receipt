@@ -18,8 +18,6 @@ import {
   filterReceipts,
   csv,
 } from './lib/domain.js';
-import { inspectPhoto } from './lib/photo.js';
-import { recognizeReceipt } from './lib/receipt-ocr.js';
 import { makeGate, verifyGate } from './lib/admin-gate.js';
 import { Icon, Modal, Field, ErrorBox } from './ui.jsx';
 import gsLogo from './assets/gs-construction-logo.png';
@@ -33,52 +31,64 @@ function Badge({ status }) {
     </span>
   );
 }
-function Summary({ core }) {
+function Summary({ core, extras }) {
   return (
     <dl className="core-summary">
-      {['merchantName', 'businessNumber', 'receiptDate', 'amount', 'approvalNumber'].map((k) => (
+      {['merchantName', 'receiptDate', 'amount'].map((k) => (
         <div key={k}>
           <dt>{LABELS[k]}</dt>
-          <dd className={core[k] == null ? 'unknown' : ''}>
-            {k === 'receiptDate'
-              ? [core.receiptDate, core.receiptTime].filter(Boolean).join(' ')
-              : display(core, k)}
-          </dd>
+          <dd>{k === 'amount' ? money(core.amount) : core[k] || '확인불가'}</dd>
         </div>
       ))}
+      {extras &&
+        ['employeeName', 'attendeeCount', 'purpose', 'location'].map((k) => (
+          <div key={k}>
+            <dt>{LABELS[k]}</dt>
+            <dd>{extras[k] || '확인불가'}</dd>
+          </div>
+        ))}
     </dl>
   );
 }
-function CoreFields({ value, onChange, team = false }) {
+function CoreFields({ value, onChange, team = false, simple = false }) {
   const set = (k, v) => onChange({ ...value, [k]: v });
+  const keys = simple
+    ? ['merchantName', 'amount', 'receiptDate']
+    : ['merchantName', 'businessNumber', 'receiptDate', 'amount', 'approvalNumber'];
   return (
     <>
       <div className="form-grid">
-        {['merchantName', 'businessNumber', 'receiptDate', 'amount', 'approvalNumber'].map((k) => (
+        {keys.map((k) => (
           <Field
             key={k}
             label={LABELS[k]}
-            required={!['businessNumber', 'approvalNumber'].includes(k)}
+            required={
+              !team &&
+              (simple
+                ? ['merchantName', 'amount', 'receiptDate'].includes(k)
+                : !['businessNumber', 'approvalNumber'].includes(k))
+            }
             hint={
               k === 'businessNumber'
                 ? '영수증에 없으면 비워두세요.'
                 : k === 'approvalNumber'
                   ? '자동 인식되며, 읽히지 않아도 등록 가능합니다.'
-                  : undefined
+                  : k === 'receiptDate'
+                    ? '법인카드 내역과 대조할 때 사용합니다.'
+                    : undefined
             }
           >
             <input
               aria-label={k === 'approvalNumber' ? '승인번호' : LABELS[k]}
-              type={k === 'receiptDate' ? 'datetime-local' : 'text'}
+              type={k === 'receiptDate' ? 'date' : 'text'}
               inputMode={['amount', 'approvalNumber'].includes(k) ? 'numeric' : undefined}
-              value={
-                k === 'receiptDate'
-                  ? value.receiptDate && value.receiptTime
-                    ? `${value.receiptDate}T${value.receiptTime}`
-                    : ''
-                  : value[k]
+              value={value[k]}
+              required={
+                !team &&
+                (simple
+                  ? ['merchantName', 'amount', 'receiptDate'].includes(k)
+                  : !['businessNumber', 'approvalNumber'].includes(k))
               }
-              required={!team && !['businessNumber', 'approvalNumber'].includes(k)}
               disabled={
                 k === 'approvalNumber' &&
                 (team ? value.approvalState !== 'present' : value.approvalState === 'absent')
@@ -94,93 +104,95 @@ function CoreFields({ value, onChange, team = false }) {
                     approvalNumber: next,
                     approvalState: next ? 'present' : 'unreadable',
                   });
-                else if (k === 'receiptDate') {
-                  const [date = '', time = ''] = next.split('T');
-                  onChange({ ...value, receiptDate: date, receiptTime: time });
-                } else set(k, next);
+                else set(k, next);
               }}
             />
           </Field>
         ))}
       </div>
-      {team ? (
-        <label className="field">
-          <span>승인번호 상태</span>
-          <select
-            aria-label="승인번호 상태"
-            value={value.approvalState}
-            onChange={(e) =>
-              onChange({
-                ...value,
-                approvalState: e.target.value,
-                approvalNumber: e.target.value === 'present' ? value.approvalNumber : '',
-              })
-            }
-          >
-            <option value="unreadable">확인불가</option>
-            <option value="present">승인번호 있음 (직접 입력)</option>
-            <option value="absent">영수증에 승인번호 자체가 없음</option>
-          </select>
-        </label>
-      ) : (
-        <label className="checkbox">
-          <input
-            type="checkbox"
-            checked={value.approvalState === 'absent'}
-            onChange={(e) =>
-              onChange({
-                ...value,
-                approvalState: e.target.checked ? 'absent' : 'unreadable',
-                approvalNumber: '',
-              })
-            }
-          />
-          영수증에 승인번호 자체가 없습니다.
-        </label>
-      )}
-      {!team && (
-        <p className="muted">
-          승인번호는 자동으로 읽히면 입력됩니다. 읽히지 않거나 영수증에 없으면 비워둘 수 있습니다.
-        </p>
-      )}
-      {team && (
-        <p className="muted">
-          읽을 수 없는 값은 비워두세요. 승인번호가 흐려서 읽지 못한 경우에는 ‘없음’을 선택하지
-          마세요.
-        </p>
-      )}
-      <details className="optional-fields">
-        <summary>추가 영수증 정보 (선택)</summary>
-        <div className="form-grid two-column">
-          <Field label="분류">
-            <select
-              aria-label="분류"
-              value={value.category}
-              onChange={(e) => set('category', e.target.value)}
-            >
-              {CATEGORIES.map((c) => (
-                <option key={c}>{c}</option>
-              ))}
-            </select>
-          </Field>
-          {['paymentMethod', 'supplyAmount', 'vatAmount', 'cardLast4', 'items'].map((k) => (
-            <label className="field" key={k}>
-              <span>{LABELS[k]}</span>
-              <input
-                aria-label={LABELS[k]}
-                type={k === 'receiptTime' ? 'time' : 'text'}
-                value={value[k]}
-                inputMode={
-                  ['supplyAmount', 'vatAmount', 'cardLast4'].includes(k) ? 'numeric' : undefined
+      {!simple && (
+        <>
+          {team ? (
+            <label className="field">
+              <span>승인번호 상태</span>
+              <select
+                aria-label="승인번호 상태"
+                value={value.approvalState}
+                onChange={(e) =>
+                  onChange({
+                    ...value,
+                    approvalState: e.target.value,
+                    approvalNumber: e.target.value === 'present' ? value.approvalNumber : '',
+                  })
                 }
-                maxLength={k === 'cardLast4' ? 4 : k === 'items' ? 1000 : 160}
-                placeholder={k === 'cardLast4' ? '마지막 4자리만 입력' : undefined}
-                onChange={(e) => set(k, e.target.value)}
-              />
+              >
+                <option value="unreadable">확인불가</option>
+                <option value="present">승인번호 있음 (직접 입력)</option>
+                <option value="absent">영수증에 승인번호 자체가 없음</option>
+              </select>
             </label>
-          ))}
-        </div>
-      </details>
+          ) : (
+            <label className="checkbox">
+              <input
+                type="checkbox"
+                checked={value.approvalState === 'absent'}
+                onChange={(e) =>
+                  onChange({
+                    ...value,
+                    approvalState: e.target.checked ? 'absent' : 'unreadable',
+                    approvalNumber: '',
+                  })
+                }
+              />
+              영수증에 승인번호 자체가 없습니다.
+            </label>
+          )}
+          {!team && (
+            <p className="muted">
+              승인번호는 자동으로 읽히면 입력됩니다. 읽히지 않거나 영수증에 없으면 비워둘 수
+              있습니다.
+            </p>
+          )}
+          {team && (
+            <p className="muted">
+              읽을 수 없는 값은 비워두세요. 승인번호가 흐려서 읽지 못한 경우에는 ‘없음’을 선택하지
+              마세요.
+            </p>
+          )}
+          <details className="optional-fields">
+            <summary>추가 영수증 정보 (선택)</summary>
+            <div className="form-grid two-column">
+              <Field label="분류">
+                <select
+                  aria-label="분류"
+                  value={value.category}
+                  onChange={(e) => set('category', e.target.value)}
+                >
+                  {CATEGORIES.map((c) => (
+                    <option key={c}>{c}</option>
+                  ))}
+                </select>
+              </Field>
+              {['paymentMethod', 'supplyAmount', 'vatAmount', 'cardLast4', 'items'].map((k) => (
+                <label className="field" key={k}>
+                  <span>{LABELS[k]}</span>
+                  <input
+                    aria-label={LABELS[k]}
+                    type={k === 'receiptTime' ? 'time' : 'text'}
+                    value={value[k]}
+                    inputMode={
+                      ['supplyAmount', 'vatAmount', 'cardLast4'].includes(k) ? 'numeric' : undefined
+                    }
+                    maxLength={k === 'cardLast4' ? 4 : k === 'items' ? 1000 : 160}
+                    placeholder={k === 'cardLast4' ? '마지막 4자리만 입력' : undefined}
+                    onChange={(e) => set(k, e.target.value)}
+                  />
+                </label>
+              ))}
+            </div>
+          </details>
+        </>
+      )}
     </>
   );
 }
@@ -262,71 +274,20 @@ function ExtraFields({ value, onChange }) {
     </>
   );
 }
-function Preview({ photo }) {
-  const [large, setLarge] = useState(false);
-  return photo ? (
-    <>
-      <div className="photo-panel">
-        <button
-          className="preview-button"
-          onClick={() => setLarge(true)}
-          aria-label="현재 사진 확대"
-          type="button"
-        >
-          <img
-            className="receipt-photo"
-            src={photo.url}
-            alt="브라우저에서 임시로 확인 중인 영수증"
-          />
-        </button>
-        <small>현재 브라우저에서만 확인 · 서버로 전송하지 않음</small>
-      </div>
-      {large && (
-        <Modal title="현재 영수증 사진" wide onClose={() => setLarge(false)}>
-          <img className="modal-image" src={photo.url} alt="현재 영수증 확대" />
-          <p className="muted">이 사진은 저장되지 않습니다.</p>
-        </Modal>
-      )}
-    </>
-  ) : (
-    <div className="notice">
-      영수증 원본을 보면서 정보를 입력해주세요. 이번 테스트에서는 사진을 보관하지 않습니다.
-    </div>
-  );
-}
 function App() {
-  const [screen, setScreen] = useState('upload'),
+  const [screen, setScreen] = useState('manual'),
     [login, setLogin] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
-    [photo, setPhoto] = useState(null),
-    [attempts, setAttempts] = useState(0),
-    [photoNotice, setPhotoNotice] = useState(''),
-    [ocrProgress, setOcrProgress] = useState(''),
-    [recognitionEngine, setRecognitionEngine] = useState('none'),
     [core, setCore] = useState({ ...EMPTY_CORE }),
     [extras, setExtras] = useState({ ...EMPTY_EXTRAS }),
     [mode, setMode] = useState('manual'),
     [saved, setSaved] = useState(null),
     [deleteDraft, setDeleteDraft] = useState(false);
-  const camera = useRef(),
-    lock = useRef(false),
-    ocrController = useRef(null),
+  const lock = useRef(false),
     requestId = useRef(crypto.randomUUID());
-  useEffect(() => () => ocrController.current?.abort(), []);
-  useEffect(
-    () => () => {
-      if (photo) URL.revokeObjectURL(photo.url);
-    },
-    [photo],
-  );
   function reset() {
-    setScreen('upload');
-    setPhoto(null);
-    setAttempts(0);
-    setPhotoNotice('');
-    setRecognitionEngine('none');
-    setOcrProgress('');
+    setScreen('manual');
     setCore({ ...EMPTY_CORE });
     setExtras({ ...EMPTY_EXTRAS });
     setMode('manual');
@@ -337,9 +298,8 @@ function App() {
   function navigate(next) {
     if (busy) return;
     if (
-      photo ||
       Object.values(core).some((v, i) => v && v !== Object.values(EMPTY_CORE)[i]) ||
-      extras.employeeName
+      Object.values(extras).some(Boolean)
     ) {
       setDeleteDraft(next);
       return;
@@ -347,98 +307,16 @@ function App() {
     setScreen(next);
     setError('');
   }
-  async function selectPhoto(e) {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file || lock.current) return;
-    lock.current = true;
-    setBusy(true);
-    setError('');
-    try {
-      const result = await inspectPhoto(file);
-      setPhoto(result);
-      setPhotoNotice(result.notice);
-      // Retaking a photo is also a recognition retry. Keep failures until a
-      // new receipt is started so three failed attempts reliably reach manual.
-      setScreen('photo');
-      await runOcr(result, attempts);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      lock.current = false;
-      setBusy(false);
-    }
-  }
-  async function runOcr(currentPhoto, failures) {
-    const controller = new AbortController();
-    ocrController.current = controller;
-    setOcrProgress('인식 엔진 준비 중…');
-    try {
-      const result = await recognizeReceipt(currentPhoto.url, {
-        signal: controller.signal,
-        onProgress: setOcrProgress,
-      });
-      setRecognitionEngine('tesseract-browser');
-      // Rephotographing the same receipt refreshes fields that OCR can read and
-      // keeps any values the employee already corrected by hand.
-      setCore((previous) => ({ ...previous, ...result.fields }));
-      if (result.complete) {
-        setPhotoNotice(
-          '업체명·승인일시·금액을 읽었습니다. 사업자번호와 승인번호도 자동 입력되면 원본과 대조해주세요.',
-        );
-        setMode('manual');
-        setScreen('manual');
-      } else {
-        const count = failures + 1;
-        setAttempts(count);
-        setMode('manual');
-        setScreen('manual');
-        setPhotoNotice(
-          '한 번의 자동 인식으로 확인하지 못한 항목은 비워두었습니다. 영수증 원본을 보고 직접 입력해주세요.',
-        );
-      }
-    } catch (err) {
-      if (err.name === 'AbortError') {
-        setScreen('photo');
-        setPhotoNotice('자동 인식을 취소했습니다. 다시 시도하거나 재촬영해주세요.');
-      }
-      if (err.name !== 'AbortError') {
-        const count = failures + 1;
-        setAttempts(count);
-        setMode('manual');
-        setScreen('manual');
-        setPhotoNotice('자동 인식을 완료하지 못했습니다. 영수증 원본을 보고 직접 입력해주세요.');
-      }
-      setError(
-        err instanceof Error
-          ? err.message
-          : '사진을 인식하지 못했습니다. 다시 시도하거나 직접 입력해주세요.',
-      );
-    } finally {
-      ocrController.current = null;
-      setOcrProgress('');
-    }
-  }
   function team() {
     setMode('team');
     setCore((v) => ({ ...v, approvalNumber: '', approvalState: 'unreadable' }));
-    setScreen('extras');
+    setScreen('manual');
     setError('');
   }
   function confirm(e) {
     e.preventDefault();
     try {
-      validateInput(
-        core,
-        {
-          ...EMPTY_EXTRAS,
-          employeeName: '확인',
-          attendeeCount: '1',
-          purpose: '확인',
-          location: '확인',
-        },
-        mode,
-      );
+      validateInput(core, extras, mode);
       setError('');
       setScreen('confirm');
     } catch (err) {
@@ -457,18 +335,10 @@ function App() {
     setBusy(true);
     setError('');
     try {
-      const receipt = await repo.create(
-        requestId.current,
-        core,
-        extras,
-        mode,
-        attempts,
-        recognitionEngine,
-      );
+      const receipt = await repo.create(requestId.current, core, extras, mode, 0, 'none');
       if (!receipt)
         throw new Error('저장 결과를 확인할 수 없습니다. 입력내용을 유지한 채 다시 시도해주세요.');
       setSaved(receipt);
-      setPhoto(null);
       setScreen('success');
     } catch (err) {
       setError(inputError(err));
@@ -477,20 +347,13 @@ function App() {
       setBusy(false);
     }
   }
-  const step =
-    screen === 'upload' || screen === 'photo'
-      ? 0
-      : screen === 'manual' || screen === 'confirm'
-        ? 1
-        : screen === 'extras'
-          ? 2
-          : 3;
+  const step = screen === 'manual' ? 0 : screen === 'confirm' ? 1 : 2;
   return (
     <>
       <header className="site-header">
         <button
           className="brand brand-button"
-          onClick={() => navigate('upload')}
+          onClick={() => navigate('manual')}
           disabled={busy}
           aria-label="GS건설 영수증 등록화면"
         >
@@ -514,7 +377,8 @@ function App() {
         </button>
       </header>
       <div className="dev-banner">
-        Spark 테스트 · 사진 미보관 · 공개 Firestore 규칙 사용 · 관리자 비밀번호는 화면 잠금용입니다.
+        Spark 테스트 · 영수증 사진 미수집 · 공개 Firestore 규칙 사용 · 관리자 비밀번호는 화면
+        잠금용입니다.
       </div>
       {screen === 'admin' ? (
         <Admin
@@ -537,7 +401,7 @@ function App() {
             </button>
           </div>
           <ol className="steps" aria-label="등록 단계">
-            {['사진 확인', '내용 입력', '추가정보', '등록 완료'].map((s, i) => (
+            {['필수정보 입력', '내용 확인', '등록 완료'].map((s, i) => (
               <li
                 key={s}
                 className={i === step ? 'active' : i < step ? 'complete' : ''}
@@ -549,167 +413,55 @@ function App() {
             ))}
           </ol>
           <ErrorBox message={error} />
-          <input
-            ref={camera}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            hidden
-            onChange={selectPhoto}
-          />
-          {(screen === 'upload' || screen === 'photo') && (
-            <section className="upload-card">
-              <div className="upload-symbol">
-                <Icon name="receipt" size={44} />
-              </div>
-              <h2>
-                영수증 전체가 보이도록
-                <br />
-                선명하게 촬영해주세요.
-              </h2>
-              <p className="muted">
-                촬영하면 기기 안에서 글자를 자동으로 읽습니다.
-                <br />
-                사진은 현재 브라우저에서만 확인하며 저장하지 않습니다.
-              </p>
-              <div className="upload-actions">
-                <button
-                  className="button primary camera-button"
-                  disabled={busy}
-                  onClick={() => camera.current.click()}
-                >
-                  <Icon name="camera" />
-                  {busy ? '자동 인식 중...' : '영수증 촬영'}
-                </button>
-              </div>
-              {busy && (
-                <p className="loading" role="status">
-                  <span className="spinner" />
-                  {ocrProgress || '사진 확인 중...'}
-                </p>
-              )}
-              {busy && (
-                <button className="button text full" onClick={() => ocrController.current?.abort()}>
-                  인식 취소
-                </button>
-              )}
-              {photo && <Preview photo={photo} />}
-              <div className="notice">
-                {photoNotice ||
-                  '촬영한 영수증은 한 번 자동 인식하고, 확인하지 못한 값은 직접 입력으로 안내합니다.'}
-              </div>
-              {photo && !busy && screen === 'photo' && (
-                <button className="button secondary" onClick={() => camera.current.click()}>
-                  다시 촬영
-                </button>
-              )}
-              <div className="photo-tips">
-                <h3>촬영 전 확인해주세요</h3>
-                <ul>
-                  {[
-                    '영수증 전체 촬영',
-                    '빛 반사 없이',
-                    '흔들림 없이',
-                    '업체명 · 사업자번호 · 승인일시 · 금액 · 승인번호가 선명하게',
-                  ].map((t) => (
-                    <li key={t}>
-                      <Icon name="check" size={16} />
-                      {t}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </section>
-          )}
           {screen === 'manual' && (
             <section className="card">
-              <h2>영수증 직접 입력</h2>
+              <h2>영수증 사용내역 입력</h2>
               <p className="muted">
-                자동 인식값은 틀릴 수 있습니다. 업체명·사업자번호·승인일시·금액·승인번호를 원본과
-                비교하고 수정해주세요. 읽을 수 없는 값은 추정하지 마세요.
+                업체명, 금액, 사용일자와 필수 사용정보를 입력해주세요. 영수증 사진은 업로드하거나
+                저장하지 않습니다.
               </p>
-              {photoNotice && (
-                <div className="notice" role="status">
-                  {photoNotice}
-                </div>
-              )}
-              <div className="result-layout">
-                <Preview photo={photo} />
-                <form onSubmit={confirm}>
-                  <CoreFields value={core} onChange={setCore} />
-                  <button className="button primary full">입력내용 확인</button>
-                  <button type="button" className="button text full" onClick={team}>
-                    입력이 어려우면 관리팀에 제출
-                  </button>
-                </form>
-              </div>
+              <form onSubmit={confirm}>
+                <CoreFields value={core} onChange={setCore} simple team={mode === 'team'} />
+                <ExtraFields value={extras} onChange={setExtras} />
+                <ErrorBox message={error} />
+                <button className="button primary full" disabled={!valid || busy}>
+                  입력내용 확인
+                </button>
+                <button type="button" className="button text full" onClick={team}>
+                  입력이 어려우면 관리팀에 제출
+                </button>
+              </form>
             </section>
           )}
           {screen === 'confirm' && (
             <section className="card compact">
-              <h2>직접 입력한 내용을 확인해주세요.</h2>
-              <Summary core={{ ...core, amount: core.amount ? Number(core.amount) : null }} />
-              <div className="notice">사진과 숫자·날짜·사용처가 일치하는지 확인해주세요.</div>
-              <button className="button primary full" onClick={() => setScreen('extras')}>
-                맞습니다 / 다음으로
-              </button>
-              <button className="button secondary full" onClick={() => setScreen('manual')}>
-                수정
-              </button>
-            </section>
-          )}
-          {screen === 'extras' && (
-            <section className="card compact">
-              <div className="section-heading">
-                <span className="section-number">03</span>
-                <div>
-                  <h2>추가정보 입력</h2>
-                  <p>모든 필수 항목을 입력하면 등록할 수 있습니다.</p>
-                </div>
-              </div>
+              <h2>등록 내용을 확인해주세요.</h2>
+              <Summary
+                core={{ ...core, amount: core.amount ? Number(core.amount) : null }}
+                extras={extras}
+              />
               {mode === 'team' ? (
                 <div className="notice warning">
                   관리팀에 확인 요청 내역을 등록합니다.
                   <br />
-                  <strong>사진은 전송되지 않습니다.</strong> 영수증 원본 또는 사진을 관리팀에 별도로
-                  전달해주세요.
+                  영수증 원본을 관리팀에 별도로 전달해주세요.
                 </div>
               ) : (
-                <div className="mini-summary">
-                  <strong>{core.merchantName}</strong>
-                  <span>
-                    {core.receiptDate} · {money(core.amount)}
-                  </span>
-                </div>
+                <div className="notice">정보가 맞으면 등록을 진행해주세요.</div>
               )}
               <form onSubmit={register}>
-                <fieldset disabled={busy}>
-                  <ExtraFields value={extras} onChange={setExtras} />
-                  <div className="notice">
-                    입력한 정보만 Firestore에 저장됩니다. 사진은 저장하지 않습니다.
-                  </div>
-                  <button className="button primary full" disabled={!valid || busy}>
-                    {busy ? (
-                      <>
-                        <span className="spinner" />
-                        등록 중...
-                      </>
-                    ) : (
-                      '등록하기'
-                    )}
-                  </button>
-                  <button
-                    type="button"
-                    className="button text full"
-                    onClick={() => {
-                      setScreen(mode === 'team' ? 'manual' : 'confirm');
-                      setMode('manual');
-                      setError('');
-                    }}
-                  >
-                    이전으로
-                  </button>
-                </fieldset>
+                <ErrorBox message={error} />
+                <button className="button primary full" disabled={!valid || busy}>
+                  {busy ? '등록 중...' : '등록하기'}
+                </button>
+                <button
+                  type="button"
+                  className="button secondary full"
+                  disabled={busy}
+                  onClick={() => setScreen('manual')}
+                >
+                  수정
+                </button>
               </form>
             </section>
           )}
@@ -732,9 +484,7 @@ function App() {
                 </div>
               )}
               {mode === 'team' && (
-                <div className="notice warning">
-                  사진은 전달되지 않았습니다. 관리팀에 원본을 별도로 전달해주세요.
-                </div>
+                <div className="notice warning">관리팀에 영수증 원본을 별도로 전달해주세요.</div>
               )}
               <button className="button primary" onClick={reset}>
                 새 영수증 등록
@@ -764,7 +514,6 @@ function App() {
           onClose={() => setLogin(false)}
           onSuccess={() => {
             setLogin(false);
-            setPhoto(null);
             setScreen('admin');
             setError('');
           }}
@@ -772,7 +521,7 @@ function App() {
       )}
       {deleteDraft && (
         <Modal title="화면 이동" onClose={() => setDeleteDraft(false)}>
-          <p>이동하면 입력 중인 내용과 임시 사진이 사라집니다. 이동하시겠습니까?</p>
+          <p>이동하면 입력 중인 내용이 사라집니다. 이동하시겠습니까?</p>
           <div className="modal-actions">
             <button className="button secondary" onClick={() => setDeleteDraft(false)}>
               취소
@@ -903,8 +652,8 @@ function Detail({ r }) {
       </dl>
       <p className="file-label">등록번호: {r.receiptId}</p>
       <div className="notice">
-        사진 미보관 · 원본 사진은 이 앱에서 조회할 수 없습니다. 별도로 전달받은 영수증과 내용을
-        비교해주세요.
+        영수증 사진 미수집 · 원본 영수증은 이 앱에 저장하지 않습니다. 직접 입력한 내용은 원본과
+        대조해주세요.
       </div>
       {r.suspectedDuplicate && (
         <p className="duplicate-note">중복 의심: 동일 사용처·일자·금액의 내역을 확인해주세요.</p>

@@ -36,6 +36,21 @@ test('핵심정보·필수정보 정확한 형식, 숫자 승인번호 앞자리
   assert.equal(validDate('2026-02-30'), false);
   assert.throws(() => validateInput({ ...core, receiptDate: '2026-02-30' }, extras));
 });
+test('직원 등록은 사용일자·업체명·금액과 사용정보만으로 가능', () => {
+  const r = validateInput(
+    {
+      ...EMPTY_CORE,
+      receiptDate: '2026-10-08',
+      merchantName: '대산보쌈',
+      amount: '92000',
+    },
+    extras,
+  );
+  assert.equal(r.receiptDate, '2026-10-08');
+  assert.equal(r.receiptTime, '');
+  assert.equal(r.businessNumber, '');
+  assert.equal(r.approvalNumber, null);
+});
 for (const attendeeCount of ['', '0', '100', '-1', '1.5', '문자', '2명', '@', ' 1', '01'])
   test(`참석인원 ${JSON.stringify(attendeeCount)} 거부`, () =>
     assert.throws(() => validateInput(core, { ...extras, attendeeCount })));

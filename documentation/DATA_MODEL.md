@@ -10,8 +10,8 @@
 | receiptId               | 브라우저에서 생성한 UUID, 문서 ID와 동일                           |
 | employeeId              | 선택 사번 문자열, 미입력 시 빈 문자열. 로그인/인증 ID가 아님       |
 | employeeName            | 실제 사용자 이름, 필수                                             |
-| receiptDate             | 승인일자 `YYYY-MM-DD` 문자열. 관리팀 제출 미확인 시 null           |
-| receiptTime             | 승인시간 `HH:MM` 또는 빈 문자열                                    |
+| receiptDate             | 사용일자 `YYYY-MM-DD` 문자열. 일반 등록 필수                       |
+| receiptTime             | 기존 문서의 승인시간 호환용. 새 직원 등록은 빈 문자열              |
 | merchantName            | 업체명 문자열. 관리팀 제출 미확인 시 null                          |
 | businessNumber          | 사업자번호 `000-00-00000`, 영수증에 표시된 경우 저장               |
 | amount                  | 영수/결제/매출합계/승인금액 정수 원, 미확인 시 null                |
@@ -34,11 +34,11 @@
 | duplicateKey            | 날짜·금액·승인번호 SHA-256. 실제 없음/확인불가는 null              |
 | requestFingerprint      | 검증된 최초 입력값 SHA-256. 같은 등록 요청 재시도 확인             |
 | suspectedDuplicate      | 실제 승인번호 없는 경우 비슷한 최근 등록 여부                      |
-| analysisAttempts        | 0~3 OCR 실패 횟수. 취소는 실패로 세지 않음                         |
-| recognitionEngine       | `tesseract-browser` 또는 미사용 시 `none`                          |
+| analysisAttempts        | 과거 OCR 문서 호환 필드. 새 직원 등록은 `0`                        |
+| recognitionEngine       | 과거 OCR 문서 호환 필드. 새 직원 등록은 `none`                     |
 | imageStored             | 항상 `false`                                                       |
 
-주소는 영수증마다 표기와 OCR 품질 차이가 커서 추출·저장하지 않습니다. 직접 입력 정상 등록은 업체명, 승인일자/시간, 영수금액을 확인해야 합니다. 사업자번호가 영수증에 표시되면 저장하며, 표시되지 않으면 비워둘 수 있습니다. 승인번호도 선택 항목이며, 값이 없거나 읽히지 않으면 비워둘 수 있습니다. 실제 영수증에 승인번호가 없는 것을 확인한 경우에는 `absent`로 구분합니다. 관리팀 제출은 읽기 어려운 값을 비워 둔 채 요청할 수 있습니다.
+현재 직원 등록은 이미지/OCR 없이 업체명, 영수금액, 사용일자와 실제 사용자·참석 인원·목적·장소를 직접 받습니다. 주소·사업자번호·승인번호는 새 등록에서 받지 않습니다. 기존 문서의 해당 필드는 관리자 상세·수정 호환을 위해 유지됩니다. 관리팀 제출은 기본 영수증 항목이 비어 있어도 필수 직원 사용정보를 입력하면 등록할 수 있습니다.
 
 상태 표시:
 
