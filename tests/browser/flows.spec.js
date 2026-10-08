@@ -63,23 +63,51 @@ async function login(page) {
 async function openRow(page) {
   await page.getByRole('button', { name: '김성석 대산보쌈 상세내역', exact: true }).click();
 }
-test('직원 첫 화면·사진은 네트워크와 Firestore에 전송하지 않음·3회 확인 후 제출 안내', async ({
+test('실제 OCR 빈 사진·3회 실패 후 수동 전환·관리팀 제출·이미지 전송 없음', async ({
   page,
 }, info) => {
+  test.setTimeout(120000);
   await start(page);
   await expect(page.getByRole('heading', { name: '영수증 등록', exact: true })).toBeVisible();
   await expect(page.locator('input[capture=environment]')).toHaveCount(1);
-  for (let i = 1; i <= 3; i++) {
-    await page
-      .locator('input[type=file]')
-      .nth(1)
-      .setInputFiles({ name: 'receipt.png', mimeType: 'image/png', buffer: png });
-    await expect(page.getByText(new RegExp(`사진 확인 시도 ${i}/3`))).toBeVisible();
+  const blank = await page.evaluate(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 600;
+    canvas.height = 900;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, 600, 900);
+    return canvas.toDataURL().split(',')[1];
+  });
+  await page
+    .locator('input[type=file]')
+    .nth(1)
+    .setInputFiles({
+      name: 'receipt.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from(blank, 'base64'),
+    });
+  await expect(page.getByText('인식 오류 1/3', { exact: true })).toBeVisible({ timeout: 60000 });
+  for (let i = 2; i <= 3; i++) {
+    if (i === 2) {
+      await page
+        .locator('input[type=file]')
+        .nth(1)
+        .setInputFiles({
+          name: 'retaken.png',
+          mimeType: 'image/png',
+          buffer: Buffer.from(blank, 'base64'),
+        });
+    } else await page.getByRole('button', { name: '자동 인식 재시도', exact: true }).click();
+    await expect(page.getByText(`인식 오류 ${i}/3`, { exact: true })).toBeVisible({
+      timeout: 60000,
+    });
   }
+  await expect(page.getByRole('heading', { name: '영수증 직접 입력', exact: true })).toBeVisible();
   await page.getByRole('button', { name: '현재 사진 확대' }).click();
   await expect(page.getByRole('img', { name: '현재 영수증 확대' })).toBeVisible();
   await page.getByRole('button', { name: '닫기', exact: true }).click();
-  await page.getByRole('button', { name: '관리팀에 제출', exact: true }).click();
+  await page.getByRole('button', { name: '입력이 어려우면 관리팀에 제출', exact: true }).click();
   await expect(page.getByText('사진은 전송되지 않습니다.', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: '등록하기', exact: true })).toBeDisabled();
   await extras(page);
@@ -91,6 +119,108 @@ test('직원 첫 화면·사진은 네트워크와 Firestore에 전송하지 않
     page.viewportSize().width,
   );
   await page.screenshot({ path: `test-results/employee-${info.project.name}.png`, fullPage: true });
+});
+test('실제 한국어 OCR 자동 채움·원본 확인 후 저장·OCR 메타데이터·외부 이미지 전송 없음', async ({
+  page,
+}) => {
+  test.setTimeout(120000);
+  await start(page);
+  const outgoing = [];
+  page.on('request', (request) =>
+    outgoing.push({ url: request.url(), method: request.method(), body: request.postData() }),
+  );
+  const image = await page.evaluate(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1000;
+    canvas.height = 1100;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, 1000, 1100);
+    ctx.fillStyle = '#000';
+    ctx.font = '40px "Noto Sans CJK KR", sans-serif';
+    [
+      '상호명: 대산보쌈',
+      '거래일시: 2026-10-08 18:32',
+      '사업자번호: 123-45-67890',
+      '공급가액: 83,636',
+      '부가세: 8,364',
+      '합계금액: 92,000원',
+      '승인번호: 0027236059',
+    ].forEach((line, i) => ctx.fillText(line, 60, 90 + i * 120));
+    return canvas.toDataURL().split(',')[1];
+  });
+  await page
+    .locator('input[type=file]')
+    .nth(1)
+    .setInputFiles({
+      name: 'receipt.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from(image, 'base64'),
+    });
+  await expect(page.getByRole('heading', { name: '영수증 직접 입력', exact: true })).toBeVisible({
+    timeout: 60000,
+  });
+  await expect(page.getByLabel('사용일자', { exact: true })).toHaveValue('2026-10-08');
+  await expect(page.getByLabel('사용처', { exact: true })).toHaveValue('대산보쌈');
+  await expect(page.getByLabel('사용금액', { exact: true })).toHaveValue('92000');
+  await expect(page.getByLabel('승인번호', { exact: true })).toHaveValue('0027236059');
+  expect([...fake.docs.values()].filter((r) => r.data.receiptId)).toHaveLength(0);
+  await page.getByRole('button', { name: '입력내용 확인', exact: true }).click();
+  await page.getByRole('button', { name: '맞습니다 / 다음으로', exact: true }).click();
+  await extras(page);
+  await save(page);
+  const saved = [...fake.docs.values()].find((r) => r.data.receiptId).data;
+  expect(saved.recognitionEngine).toBe('tesseract-browser');
+  expect(saved.analysisAttempts).toBe(0);
+  expect(saved.imageStored).toBe(false);
+  expect(
+    outgoing.filter(
+      (r) =>
+        !r.url.startsWith('http://127.0.0.1:3101/') &&
+        !r.url.startsWith('https://firestore.googleapis.com/'),
+    ),
+  ).toHaveLength(0);
+  expect(
+    outgoing
+      .filter((r) => r.method !== 'GET')
+      .every((r) => r.url.startsWith('https://firestore.googleapis.com/')),
+  ).toBe(true);
+  expect(
+    fake.bodies.some((body) => /data:image|상호명:|traineddata/.test(JSON.stringify(body))),
+  ).toBe(false);
+});
+test('OCR 파일 로드 오류는 실패 안내·수기 입력 유지', async ({ page }) => {
+  await start(page);
+  await page.route('**/ocr/kor.traineddata.gz', (route) => route.abort());
+  await page
+    .locator('input[type=file]')
+    .nth(1)
+    .setInputFiles({ name: 'receipt.png', mimeType: 'image/png', buffer: png });
+  await expect(page.getByRole('alert')).toContainText('인식 엔진');
+  await expect(page.getByText('인식 오류 1/3', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '직접 입력', exact: true }).click();
+  await expect(page.getByRole('heading', { name: '영수증 직접 입력', exact: true })).toBeVisible();
+});
+test('느린 OCR 다운로드 취소는 실패 횟수를 늘리지 않고 수기로 전환', async ({ page }) => {
+  await start(page);
+  let release;
+  const held = new Promise((resolve) => {
+    release = resolve;
+  });
+  await page.route('**/ocr/kor.traineddata.gz', async (route) => {
+    await held;
+    await route.abort().catch(() => {});
+  });
+  const requested = page.waitForRequest('**/ocr/kor.traineddata.gz');
+  await page
+    .locator('input[type=file]')
+    .nth(1)
+    .setInputFiles({ name: 'receipt.png', mimeType: 'image/png', buffer: png });
+  await requested;
+  await page.getByRole('button', { name: '인식 취소 / 직접 입력', exact: true }).click();
+  await expect(page.getByRole('heading', { name: '영수증 직접 입력', exact: true })).toBeVisible();
+  await expect(page.getByText(/인식 오류 \d\/3/)).toHaveCount(0);
+  release();
 });
 test('정상 직접 입력·잘못된 인원 차단·조회·기간/사용자 필터·수정·상태·CSV·삭제 확인', async ({
   page,

@@ -42,7 +42,7 @@ export class ReceiptRepository {
         Date.now() - Date.parse(r.createdAt) < 86400000,
     );
   }
-  async create(id, core, extras, mode = 'manual', attempts = 0) {
+  async create(id, core, extras, mode = 'manual', attempts = 0, recognitionEngine = 'none') {
     const input = validateInput(core, extras, mode),
       key = await duplicateKey(input),
       fingerprint = await sha256(JSON.stringify(input)),
@@ -63,7 +63,7 @@ export class ReceiptRepository {
         status: mode === 'team' ? 'team_review' : 'manual_review',
         version: 1,
         analysisAttempts: Math.min(3, Math.max(0, attempts)),
-        recognitionEngine: 'none',
+        recognitionEngine: recognitionEngine === 'tesseract-browser' ? recognitionEngine : 'none',
         imageStored: false,
         duplicateKey: key,
         suspectedDuplicate,

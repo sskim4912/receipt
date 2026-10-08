@@ -11,7 +11,7 @@ export async function inspectPhoto(file) {
     });
     return {
       url,
-      notice: '이번 테스트에서는 자동 인식을 제공하지 않습니다. 영수증을 보면서 직접 입력해주세요.',
+      notice: '사진은 현재 브라우저에서만 처리합니다. 인식 결과를 원본과 비교해주세요.',
     };
   } catch {
     URL.revokeObjectURL(url);

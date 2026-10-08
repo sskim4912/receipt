@@ -19,6 +19,7 @@ import {
   csv,
 } from './lib/domain.js';
 import { inspectPhoto } from './lib/photo.js';
+import { recognizeReceipt } from './lib/receipt-ocr.js';
 import { makeGate, verifyGate } from './lib/admin-gate.js';
 import { Icon, Modal, Field, ErrorBox } from './ui.jsx';
 import './styles.css';
@@ -266,6 +267,8 @@ function App() {
     [photo, setPhoto] = useState(null),
     [attempts, setAttempts] = useState(0),
     [photoNotice, setPhotoNotice] = useState(''),
+    [ocrProgress, setOcrProgress] = useState(''),
+    [recognitionEngine, setRecognitionEngine] = useState('none'),
     [core, setCore] = useState({ ...EMPTY_CORE }),
     [extras, setExtras] = useState({ ...EMPTY_EXTRAS }),
     [mode, setMode] = useState('manual'),
@@ -274,7 +277,9 @@ function App() {
   const camera = useRef(),
     picker = useRef(),
     lock = useRef(false),
+    ocrController = useRef(null),
     requestId = useRef(crypto.randomUUID());
+  useEffect(() => () => ocrController.current?.abort(), []);
   useEffect(
     () => () => {
       if (photo) URL.revokeObjectURL(photo.url);
@@ -286,6 +291,8 @@ function App() {
     setPhoto(null);
     setAttempts(0);
     setPhotoNotice('');
+    setRecognitionEngine('none');
+    setOcrProgress('');
     setCore({ ...EMPTY_CORE });
     setExtras({ ...EMPTY_EXTRAS });
     setMode('manual');
@@ -317,11 +324,84 @@ function App() {
       const result = await inspectPhoto(file);
       setPhoto(result);
       setPhotoNotice(result.notice);
-      setAttempts((v) => Math.min(3, v + 1));
+      // Retaking a photo is also a recognition retry. Keep failures until a
+      // new receipt is started so three failed attempts reliably reach manual.
+      setCore({ ...EMPTY_CORE });
+      setRecognitionEngine('none');
       setScreen('photo');
+      await runOcr(result, attempts);
     } catch (err) {
-      setAttempts((v) => Math.min(3, v + 1));
       setError(err.message);
+    } finally {
+      lock.current = false;
+      setBusy(false);
+    }
+  }
+  async function runOcr(currentPhoto, failures) {
+    const controller = new AbortController();
+    ocrController.current = controller;
+    setOcrProgress('인식 엔진 준비 중…');
+    try {
+      const result = await recognizeReceipt(currentPhoto.url, {
+        signal: controller.signal,
+        onProgress: setOcrProgress,
+      });
+      setRecognitionEngine('tesseract-browser');
+      setCore({ ...EMPTY_CORE, ...result.fields });
+      if (result.complete) {
+        setPhotoNotice(
+          '자동 인식했습니다. 날짜·사용처·금액·승인번호를 원본과 반드시 비교해주세요.',
+        );
+        setMode('manual');
+        setScreen('manual');
+      } else {
+        const count = Math.min(3, failures + 1);
+        setAttempts(count);
+        setPhotoNotice(
+          '일부 항목을 읽지 못했습니다. 읽힌 값은 입력란에 채웠습니다. 재시도하거나 직접 확인·입력해주세요.',
+        );
+        if (count >= 3) {
+          setMode('manual');
+          setScreen('manual');
+          setPhotoNotice(
+            '인식 오류가 3회 발생해 직접 입력으로 전환했습니다. 입력이 어려우면 관리팀에 제출해주세요.',
+          );
+        }
+      }
+    } catch (err) {
+      if (err.name === 'AbortError') {
+        setMode('manual');
+        setScreen('manual');
+        setPhotoNotice('자동 인식을 취소했습니다. 영수증을 보면서 직접 입력해주세요.');
+      }
+      if (err.name !== 'AbortError') {
+        const count = Math.min(3, failures + 1);
+        setAttempts(count);
+        if (count >= 3) {
+          setMode('manual');
+          setScreen('manual');
+          setPhotoNotice(
+            '인식 오류가 3회 발생해 직접 입력으로 전환했습니다. 입력이 어려우면 관리팀에 제출해주세요.',
+          );
+        }
+      }
+      setError(
+        err instanceof Error
+          ? err.message
+          : '사진을 인식하지 못했습니다. 다시 시도하거나 직접 입력해주세요.',
+      );
+    } finally {
+      ocrController.current = null;
+      setOcrProgress('');
+    }
+  }
+  async function retryOcr() {
+    if (!photo || lock.current || attempts >= 3) return;
+    lock.current = true;
+    setBusy(true);
+    setError('');
+    try {
+      await runOcr(photo, attempts);
     } finally {
       lock.current = false;
       setBusy(false);
@@ -374,7 +454,14 @@ function App() {
     setBusy(true);
     setError('');
     try {
-      const receipt = await repo.create(requestId.current, core, extras, mode, attempts);
+      const receipt = await repo.create(
+        requestId.current,
+        core,
+        extras,
+        mode,
+        attempts,
+        recognitionEngine,
+      );
       if (!receipt)
         throw new Error('저장 결과를 확인할 수 없습니다. 입력내용을 유지한 채 다시 시도해주세요.');
       setSaved(receipt);
@@ -472,7 +559,7 @@ function App() {
                 선명하게 촬영해주세요.
               </h2>
               <p className="muted">
-                이번 테스트에서는 자동 인식 없이 직접 입력합니다.
+                사진을 선택하면 기기 안에서 글자를 자동으로 읽습니다.
                 <br />
                 사진은 현재 브라우저에서만 확인하며 저장하지 않습니다.
               </p>
@@ -483,7 +570,7 @@ function App() {
                   onClick={() => camera.current.click()}
                 >
                   <Icon name="camera" />
-                  {busy ? '사진 확인 중...' : '영수증 촬영'}
+                  {busy ? '자동 인식 중...' : '영수증 촬영'}
                 </button>
                 <button
                   className="button secondary"
@@ -506,15 +593,25 @@ function App() {
               {busy && (
                 <p className="loading" role="status">
                   <span className="spinner" />
-                  사진 확인 중...
+                  {ocrProgress || '사진 확인 중...'}
                 </p>
+              )}
+              {busy && (
+                <button className="button text full" onClick={() => ocrController.current?.abort()}>
+                  인식 취소 / 직접 입력
+                </button>
               )}
               {photo && <Preview photo={photo} />}
               <div className="notice">
                 {photoNotice ||
                   '사진 없이 직접 입력할 수도 있습니다. 영수증 원본은 별도로 보관해주세요.'}
-                {attempts > 0 && <small>사진 확인 시도 {attempts}/3 · 자동 인식 미제공</small>}
+                {attempts > 0 && <small>인식 오류 {attempts}/3</small>}
               </div>
+              {photo && attempts < 3 && (
+                <button className="button secondary full" disabled={busy} onClick={retryOcr}>
+                  자동 인식 재시도
+                </button>
+              )}
               <button className="button primary full" disabled={busy} onClick={manual}>
                 직접 입력
               </button>
@@ -549,8 +646,15 @@ function App() {
             <section className="card">
               <h2>영수증 직접 입력</h2>
               <p className="muted">
-                핵심 4개 항목을 원본 그대로 입력해주세요. 읽을 수 없는 값은 추정하지 마세요.
+                자동 인식값은 틀릴 수 있습니다. 핵심 4개 항목을 원본과 비교하고 수정해주세요. 읽을
+                수 없는 값은 추정하지 마세요.
               </p>
+              {photoNotice && (
+                <div className="notice" role="status">
+                  {photoNotice}
+                  {attempts > 0 && <small>인식 오류 {attempts}/3</small>}
+                </div>
+              )}
               <div className="result-layout">
                 <Preview photo={photo} />
                 <form onSubmit={confirm}>

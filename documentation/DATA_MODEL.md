@@ -34,8 +34,8 @@
 | duplicateKey            | 날짜·금액·승인번호 SHA-256. 실제 없음/확인불가는 null               |
 | requestFingerprint      | 검증된 최초 입력값 SHA-256. 같은 등록 요청 재시도 확인              |
 | suspectedDuplicate      | 실제 승인번호 없는 경우 비슷한 최근 등록 여부                       |
-| analysisAttempts        | 0~3 사진 확인 횟수. 실제 AI 오류 횟수가 아님                        |
-| recognitionEngine       | 현재 `none`                                                         |
+| analysisAttempts        | 0~3 OCR 실패 횟수. 취소는 실패로 세지 않음                          |
+| recognitionEngine       | `tesseract-browser` 또는 미사용 시 `none`                           |
 | imageStored             | 항상 `false`                                                        |
 
 상태 표시:
