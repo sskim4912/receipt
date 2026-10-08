@@ -232,6 +232,9 @@ test('관리자 첫 비밀번호 설정·틀린 비밀번호·화면 구분', as
 });
 test('모바일 첫 화면에서 전체 필수 항목을 입력할 수 있음', async ({ page }, info) => {
   await start(page);
+  await expect(
+    page.getByText('영수증 원본을 보관하고 정확한 사용내역을 기록해주세요.'),
+  ).toHaveCount(0);
   await expect(page.locator('input[type=file]')).toHaveCount(1);
   await expect(page.getByLabel('사용일자', { exact: true })).toBeVisible();
   await expect(page.getByLabel('업체명', { exact: true })).toBeVisible();

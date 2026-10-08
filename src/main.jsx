@@ -586,10 +586,6 @@ function App() {
               </button>
             </section>
           )}
-          <div className="trust-note">
-            <Icon name="receipt" size={16} />
-            <span>영수증 원본을 보관하고 정확한 사용내역을 기록해주세요.</span>
-          </div>
         </main>
       )}
       <footer>

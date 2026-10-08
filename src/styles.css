@@ -323,15 +323,6 @@ fieldset {
   color: #6c9abc;
   flex: none;
 }
-.trust-note {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  color: #8b9aa9;
-  font-size: 12px;
-  margin: 26px 0 0;
-}
 .card {
   padding: 30px;
 }
@@ -1116,10 +1107,6 @@ footer span {
   .photo-tips ul {
     font-size: 11px;
     gap: 10px;
-  }
-  .trust-note {
-    font-size: 10px;
-    margin-top: 23px;
   }
   .card {
     padding: 22px;
