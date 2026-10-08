@@ -68,7 +68,7 @@ Cloud Vision을 사용할 Google Cloud 프로젝트에서 **Cloud Vision API를 
 2. API 제한은 Cloud Vision API만 허용합니다. 사용량 한도도 설정하세요.
 3. 저장소 루트의 `index.html`에서 다음 meta 태그의 `content`에 키를 입력합니다.
 
-   ```env
+   ```html
    <meta name="google-cloud-vision-api-key" content="여기에_제한된_API_키" />
    ```
 
