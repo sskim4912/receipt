@@ -33,6 +33,32 @@ test('English receipt and next-line total', () => {
   assert.equal(result.fields.amount, '12000');
   assert.equal(result.fields.approvalNumber, '00001234');
 });
+test('Bracketed Korean store fields and explicit approval date/time take priority', () => {
+  const result = parseReceiptText(`[매장명] 덕수네갈비
+[사업자] 156-22-00310
+[매출일] 2026-10-03 12:10:07
+받을금액 104,000
+[승인금액] 104,000
+[승인번호] 32090166
+[승인일시] 2026-10-03 12:10:05`);
+  assert.equal(result.complete, true);
+  assert.equal(result.fields.merchantName, '덕수네갈비');
+  assert.equal(result.fields.businessNumber, '156-22-00310');
+  assert.equal(result.fields.receiptDate, '2026-10-03');
+  assert.equal(result.fields.receiptTime, '12:10');
+  assert.equal(result.fields.amount, '104000');
+  assert.equal(result.fields.approvalNumber, '32090166');
+});
+test('Korean afternoon receipt time and 결제총액 label', () => {
+  const result = parseReceiptText(`대산농협주유소
+사업자번호: 316-82-05643
+결제일시: 2026-10-02 오후 7:04:51
+결제총액 70,000
+승인번호: 24793298`);
+  assert.equal(result.fields.merchantName, '대산농협주유소');
+  assert.equal(result.fields.receiptTime, '19:04');
+  assert.equal(result.fields.amount, '70000');
+});
 test('Unknown approval is never assumed absent; random large numbers and VAT are not total', () => {
   const result = parseReceiptText(
     '영수증\n전화 010-1234-5678\n사업자 123-45-67890\n부가세 1000\n카드 1234567890',

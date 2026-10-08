@@ -19,16 +19,21 @@ export function parseReceiptText(text = '') {
       const date = `${year}-${match[2].padStart(2, '0')}-${match[3].padStart(2, '0')}`;
       if (validDate(date)) datedLines.push({ date, line });
     }
-    const time = line.match(/\b([01]?\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?\b/);
-    if (time)
+    const time = line.match(/(?:(오전|오후|AM|PM)\s*)?([01]?\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?\b/i);
+    if (time) {
+      const meridiem = time[1]?.toUpperCase();
+      let hour = Number(time[2]);
+      if (meridiem === '오전' || meridiem === 'AM') hour %= 12;
+      if (meridiem === '오후' || meridiem === 'PM') hour = (hour % 12) + 12;
       timedLines.push({
         line,
         labeled: /(?:승인시간|거래시간|결제시간|계산시간|시간|시각)/.test(line.replace(/\s/g, '')),
-        time: `${time[1].padStart(2, '0')}:${time[2]}`,
+        time: `${String(hour).padStart(2, '0')}:${time[3]}`,
       });
+    }
   }
   const approvalDateLines = datedLines.filter(({ line }) =>
-    /(?:승인일시|승인일자|승인일|거래일시|결제일시)/.test(line.replace(/\s/g, '')),
+    /(?:승인일시|승인일자|승인일|거래일시|결제일시|매출일)/.test(line.replace(/\s/g, '')),
   );
   const dateCandidates = approvalDateLines.length ? approvalDateLines : datedLines;
   const uniqueDates = [...new Set(dateCandidates.map(({ date }) => date))];
@@ -68,7 +73,7 @@ export function parseReceiptText(text = '') {
     return unique.length === 1 ? String(unique[0]) : '';
   };
   const total = labelled(
-    /^(?:총결제금액|실결제금액|총승인금액|총합계금액|합계금액|결제금액|결제합계|승인금액|매출합계|주문합계|영수금액|판매합계|받을금액|총금액|합계|총액|TOTAL(?:AMOUNT)?)/i,
+    /^(?:총결제금액|결제총액|실결제금액|총승인금액|총합계금액|합계금액|결제금액|결제합계|승인금액|매출합계|주문합계|영수금액|판매합계|받을금액|총금액|합계|총액|TOTAL(?:AMOUNT)?)/i,
   );
   if (total) fields.amount = total;
   const supply = labelled(/^(?:공급가액|공급가|과세금액)/);
@@ -79,7 +84,7 @@ export function parseReceiptText(text = '') {
   const approvals = lines.flatMap((line) => {
     const match = line
       .replace(/\s/g, '')
-      .match(/(?:승인번호|인번호|APPROVAL(?:NO|NUMBER)?)[：:#-]?(\d{1,40})(?:$|[^\d])/i);
+      .match(/(?:승인번호|인번호|APPROVAL(?:NO|NUMBER)?)\]?[：:#-]?(\d{1,40})(?:$|[^\d])/i);
     return match ? [match[1]] : [];
   });
   if (new Set(approvals).size === 1) {
@@ -89,7 +94,7 @@ export function parseReceiptText(text = '') {
   const businessNumbers = lines.flatMap((line) => {
     const compact = line.replace(/\s/g, '');
     const labeled = compact.match(
-      /(?:사업자등록번호|사업자번호|사업자등록|사업자|BUSINESS(?:REGISTRATION)?(?:NO|NUMBER)?)[：:#-]?([0-9-]{10,12})/i,
+      /(?:사업자등록번호|사업자번호|사업자등록|사업자|BUSINESS(?:REGISTRATION)?(?:NO|NUMBER)?)\]?[：:#-]?([0-9-]{10,12})/i,
     );
     const standard = line.match(/(\d{3}\s*-\s*\d{2}\s*-\s*\d{5})/);
     const raw = labeled?.[1] || standard?.[1]?.replace(/\s/g, '');
@@ -110,7 +115,9 @@ export function parseReceiptText(text = '') {
     );
   const explicitMerchant = lines
     .map((line) =>
-      line.match(/^(?:상\s*호(?:\s*명)?|가\s*맹\s*점(?:\s*명)?|업\s*체\s*명)\s*[:：]?\s*(.+)$/),
+      line.match(
+        /^\[?(?:상\s*호(?:\s*명)?|매\s*장\s*명|가\s*맹\s*점(?:\s*명)?|업\s*체\s*명)\]?\s*[:：]?\s*(.+)$/,
+      ),
     )
     .find(Boolean);
   if (explicitMerchant) fields.merchantName = explicitMerchant[1].trim().slice(0, 160);
