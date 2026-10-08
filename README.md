@@ -66,14 +66,14 @@ Cloud Vision을 사용할 Google Cloud 프로젝트에서 **Cloud Vision API를 
 
 1. 애플리케이션 제한은 HTTP 리퍼러로 설정하고 `https://sskim4912.github.io/receipt/*`만 허용합니다.
 2. API 제한은 Cloud Vision API만 허용합니다. 사용량 한도도 설정하세요.
-3. 저장소 루트에 `.env.local` 파일을 만들고 아래처럼 키를 입력합니다. 이 파일은 `.gitignore` 대상입니다.
+3. 저장소 루트의 `index.html`에서 다음 meta 태그의 `content`에 키를 입력합니다.
 
    ```env
-   VITE_CLOUD_VISION_API_KEY=여기에_제한된_API_키
+   <meta name="google-cloud-vision-api-key" content="여기에_제한된_API_키" />
    ```
 
-4. `npm run build`로 `docs/`를 다시 만들고 변경된 `docs/`를 GitHub Pages에 배포합니다. `.env.local` 자체는 커밋하지 마세요.
+4. `npm run build`로 `docs/`를 다시 만들고 변경된 `index.html`과 `docs/`를 GitHub Pages에 배포합니다.
 
-브라우저에서 직접 호출하므로 API 키는 빌드된 자바스크립트에서 누구나 볼 수 있습니다. 이 키는 비밀로 취급할 수 없으며 반드시 리퍼러·API·사용량 제한을 적용해야 합니다. 서비스 계정 JSON 키 파일을 업로드하거나 작성하지 마세요. 키가 아직 설정되지 않았거나 OCR에 실패해도 사진 미리보기와 직접 입력은 계속 사용할 수 있습니다. Cloud Vision은 별도 Google Cloud 프로젝트의 요금·쿼터를 따르며 Firebase Spark와 별도입니다.
+브라우저에서 직접 호출하므로 API 키는 HTML에서 누구나 볼 수 있습니다. 이 키는 비밀로 취급할 수 없으며 반드시 리퍼러·API·사용량 제한을 적용해야 합니다. 서비스 계정 JSON 키 파일을 업로드하거나 작성하지 마세요. 키가 아직 설정되지 않았거나 OCR에 실패해도 사진 미리보기와 직접 입력은 계속 사용할 수 있습니다. Cloud Vision은 별도 Google Cloud 프로젝트의 요금·쿼터를 따르며 Firebase Spark와 별도입니다.
 
 `npm run build`는 GitHub Pages용 파일을 `docs/`에 생성합니다. Pages 배포 원본은 `main` 브랜치의 `/docs`입니다. 테스트 결과는 [검증 현황](documentation/VALIDATION.md), 배포 안내는 [배포 안내](documentation/DEPLOYMENT.md)에 정리했습니다.

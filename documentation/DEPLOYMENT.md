@@ -25,6 +25,6 @@ Firebase Firestore REST API만 연결합니다. Storage, Cloud Functions, Authen
 
 ## Cloud Vision API 키 설정
 
-별도 Google Cloud 프로젝트에서 Cloud Vision API를 활성화하고 제한된 API 키를 만든 뒤 저장소 루트 `.env.local`에 `VITE_CLOUD_VISION_API_KEY=...`로 설정합니다. 허용 HTTP 리퍼러는 `https://sskim4912.github.io/receipt/*`, API 제한은 Cloud Vision API로 한정하고 쿼터를 설정하세요. `npm run build`가 `docs/`에 정적 결과물을 생성하며, 해당 JS에서 키를 확인할 수 있습니다. 따라서 키는 공개된 것으로 간주해야 하며 제한되지 않은 키를 배포하지 마세요. 서비스 계정 JSON은 브라우저에 넣지 않습니다.
+별도 Google Cloud 프로젝트에서 Cloud Vision API를 활성화하고 제한된 API 키를 만든 뒤 `index.html`의 `<meta name="google-cloud-vision-api-key" content="">`의 `content`에 입력합니다. 허용 HTTP 리퍼러는 `https://sskim4912.github.io/receipt/*`, API 제한은 Cloud Vision API로 한정하고 쿼터를 설정하세요. `npm run build` 후 `index.html`과 `docs/`를 배포합니다. 키는 HTML에서 공개되므로 제한 없는 키를 배포하지 마세요. 서비스 계정 JSON은 브라우저에 넣지 않습니다.
 
 Cloud Vision 요금과 무료 쿼터는 Firebase Spark와 별도 Google Cloud 프로젝트 기준입니다. 현재 코드는 이미지 업로드 기능을 추가하지 않았으며, Firebase Storage·Cloud Functions·별도 서버도 사용하지 않습니다. OCR 미설정 또는 실패 시 수기 입력 경로가 유지됩니다.
