@@ -61,11 +61,39 @@ async function login(page) {
 async function openRow(page) {
   await page.getByRole('button', { name: '김성석 대산보쌈 상세내역', exact: true }).click();
 }
-test('사진 미리보기와 필수정보 직접 입력·사진 미전송 저장', async ({ page }, info) => {
+test('사진을 Cloud Vision으로 OCR하고 필드에 채우되 Firebase에는 저장하지 않는다', async ({
+  page,
+}, info) => {
+  await page.addInitScript(() => {
+    window.__CLOUD_VISION_API_KEY__ = 'test-api-key';
+  });
+  let visionRequest;
+  await page.route('https://vision.googleapis.com/**', async (route) => {
+    visionRequest = route.request().postDataJSON();
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        responses: [
+          {
+            fullTextAnnotation: {
+              text: '[매장명] 대산보쌈\n승인일시: 2026-10-08 19:16:34\n결제금액: 92,000원',
+            },
+          },
+        ],
+      }),
+    });
+  });
   await start(page);
+  const outgoing = [];
+  page.on('request', (request) => outgoing.push(request.url()));
   const camera = page.locator('input[type=file]');
   await expect(camera).toHaveAttribute('capture', 'environment');
   await camera.setInputFiles({ name: 'receipt.png', mimeType: 'image/png', buffer: png });
+  await expect(page.getByLabel('업체명', { exact: true })).toHaveValue('대산보쌈');
+  await expect(page.getByLabel('영수금액', { exact: true })).toHaveValue('92000');
+  await expect(page.getByLabel('사용일자', { exact: true })).toHaveValue('2026-10-08');
+  await expect(page.getByRole('status')).toContainText('빈 입력란에 넣었습니다');
   await expect(
     page.getByRole('img', { name: '브라우저에서 임시로 확인 중인 영수증' }),
   ).toBeVisible();
@@ -80,8 +108,6 @@ test('사진 미리보기와 필수정보 직접 입력·사진 미전송 저장
   await expect(page.getByLabel('구체적인 사용 목적', { exact: true })).toBeVisible();
   await expect(page.getByLabel('사용장소', { exact: true })).toBeVisible();
   await expect(page.getByLabel('메모', { exact: true })).toHaveCount(0);
-  const outgoing = [];
-  page.on('request', (request) => outgoing.push(request.url()));
   await core(page);
   await extras(page);
   await page.getByRole('button', { name: '입력내용 확인', exact: true }).click();
@@ -93,7 +119,16 @@ test('사진 미리보기와 필수정보 직접 입력·사진 미전송 저장
   expect(saved.receiptDate).toBe('2026-10-08');
   expect(saved.employeeName).toBe('김성석');
   expect(saved.imageStored).toBe(false);
-  expect(outgoing.every((url) => url.startsWith('https://firestore.googleapis.com/'))).toBe(true);
+  expect(outgoing.some((url) => url.startsWith('https://vision.googleapis.com/'))).toBe(true);
+  expect(
+    outgoing.every(
+      (url) =>
+        url.startsWith('https://firestore.googleapis.com/') ||
+        url.startsWith('https://vision.googleapis.com/'),
+    ),
+  ).toBe(true);
+  expect(visionRequest.requests[0].features[0].type).toBe('DOCUMENT_TEXT_DETECTION');
+  expect(visionRequest.requests[0].image.content).toBeTruthy();
   expect(fake.bodies.some((body) => /data:image/.test(JSON.stringify(body)))).toBe(false);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
     page.viewportSize().width,

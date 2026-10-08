@@ -15,14 +15,16 @@ npm run test:e2e
 
 ## Firebase Spark
 
-Firebase Firestore REST API만 연결합니다. Storage, Cloud Functions, Authentication, OpenAI API, 별도 서버는 사용하지 않으며 Blaze 요금제로 변경하지 않습니다. 웹 설정은 `src/firebase-config.js`에 있습니다.
+Firebase Firestore REST API만 연결합니다. Storage, Cloud Functions, Authentication, OpenAI API, 별도 서버는 사용하지 않으며 Blaze 요금제로 변경하지 않습니다. 웹 설정은 `src/firebase-config.js`에 있습니다. Cloud Vision OCR은 별도 Google Cloud 프로젝트의 Vision API REST endpoint를 브라우저에서 직접 호출합니다.
 
 현재 Firestore 규칙 `allow read, write: if true`에서는 누구나 데이터와 앱 설정에 접근할 수 있습니다. 앱의 관리자 암호는 테스트용 화면 잠금일 뿐 데이터 권한 검사가 아닙니다. 실제 민감정보 사용 전 인증 기반 보안 규칙을 별도로 마련해야 합니다.
 
 ## 직원 화면
 
-직원 화면은 영수증을 브라우저에서 임시 미리보기로 보여주며 업체명·영수금액·사용일자와 직원 필수 사용정보를 직접 입력받습니다. 사진에 OCR/GPT를 적용하지 않고 사진을 서버/Firestore에 보내거나 저장하지 않습니다. 영수증 원본은 사용자가 별도로 보관합니다.
+직원 화면은 촬영한 영수증을 브라우저에서 임시 미리보기로 보여주며, 키가 설정된 경우 Google Cloud Vision OCR을 한 번 호출해 업체명·영수금액·사용일자를 읽습니다. 이미지 데이터는 Vision API로 전송되지만 Firebase Storage나 Firestore에는 저장하지 않습니다. 못 읽은 값은 빈 채로 두고 직접 입력을 허용합니다. 영수증 원본은 사용자가 별도로 보관합니다.
 
-## 향후 GPT 영수증 인식
+## Cloud Vision API 키 설정
 
-현재 앱에는 GPT/OpenAI 인식이 연결되어 있지 않습니다. 향후 추가하려면 브라우저 코드에 API 키를 넣지 않고, 키를 보호할 수 있는 별도 서버/API, 요청 인증·사용량 제한, 사진 분석의 개인정보 처리 범위 합의가 필요합니다. Spark와 정적 GitHub Pages만으로 비밀 API 키를 안전하게 보관하는 서버 기능은 제공되지 않습니다.
+별도 Google Cloud 프로젝트에서 Cloud Vision API를 활성화하고 제한된 API 키를 만든 뒤 저장소 루트 `.env.local`에 `VITE_CLOUD_VISION_API_KEY=...`로 설정합니다. 허용 HTTP 리퍼러는 `https://sskim4912.github.io/receipt/*`, API 제한은 Cloud Vision API로 한정하고 쿼터를 설정하세요. `npm run build`가 `docs/`에 정적 결과물을 생성하며, 해당 JS에서 키를 확인할 수 있습니다. 따라서 키는 공개된 것으로 간주해야 하며 제한되지 않은 키를 배포하지 마세요. 서비스 계정 JSON은 브라우저에 넣지 않습니다.
+
+Cloud Vision 요금과 무료 쿼터는 Firebase Spark와 별도 Google Cloud 프로젝트 기준입니다. 현재 코드는 이미지 업로드 기능을 추가하지 않았으며, Firebase Storage·Cloud Functions·별도 서버도 사용하지 않습니다. OCR 미설정 또는 실패 시 수기 입력 경로가 유지됩니다.

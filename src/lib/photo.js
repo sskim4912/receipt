@@ -9,7 +9,7 @@ export async function inspectPhoto(file) {
       image.onerror = reject;
       image.src = url;
     });
-    return { url };
+    return { url, file };
   } catch {
     URL.revokeObjectURL(url);
     throw new Error('사진을 읽을 수 없습니다. JPG, PNG 또는 WebP 사진으로 다시 촬영해주세요.');

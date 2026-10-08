@@ -2,11 +2,11 @@
 
 **사용 주소: https://sskim4912.github.io/receipt/**
 
-GitHub Pages와 Firebase Firestore만 사용하는 Spark 테스트용 웹앱입니다. 직원은 PC·모바일 브라우저에서 별도 프로그램 설치 없이 사용할 수 있습니다. 사진 촬영과 브라우저 임시 미리보기를 지원하지만, OCR/GPT로 읽거나 서버에 전송·저장하지 않습니다.
+GitHub Pages와 Firebase Firestore를 사용하는 웹앱입니다. 직원은 PC·모바일 브라우저에서 별도 프로그램 설치 없이 사용할 수 있습니다. 촬영 이미지는 브라우저에서 미리보기로 유지하며, 설정된 경우 Google Cloud Vision OCR 요청에만 전송합니다. Firebase Storage와 Firestore에는 이미지 파일을 저장하지 않습니다.
 
 ## 직원 등록 방법
 
-직원 화면에서 영수증 사진을 촬영해 확대 확인하면서 다음 항목을 직접 입력하고, 입력 내용을 확인한 뒤 등록합니다. 사진은 등록 완료 또는 화면을 나갈 때 브라우저에서 지워집니다.
+직원 화면에서 영수증 사진을 촬영하면 Cloud Vision OCR을 한 번 실행해 업체명·사용일자·금액을 읽고, 읽은 값은 비어 있는 입력란에만 채웁니다. 불확실하거나 못 읽은 값은 비워두므로 사용자가 사진을 보며 확인·수정하고 나머지 필수정보를 입력한 뒤 등록합니다. 사진은 브라우저 메모리에서만 유지하고 등록 완료 또는 화면을 나갈 때 지웁니다.
 
 - 업체명, 영수금액, **사용일자**
 - 실제 사용자, 참석 인원수(1~99), 구체적인 사용 목적, 사용장소
@@ -26,7 +26,7 @@ GitHub Pages와 Firebase Firestore만 사용하는 Spark 테스트용 웹앱입�
 
 ## 저장 및 오류 방지
 
-- 사진은 브라우저 임시 미리보기에만 사용하며 이미지 바이트, Base64, 이미지 URL은 전송하거나 Firestore에 저장하지 않습니다.
+- 이미지 바이트는 OCR을 위해 Google Cloud Vision API에 직접 전송됩니다. Firebase Storage, Cloud Functions, OpenAI에는 전송하지 않으며 Firestore에도 이미지 바이트·Base64·이미지 URL을 저장하지 않습니다.
 - 사용일자, 업체명, 금액과 직원 사용정보를 확인하고 필수 값이 없거나 형식이 잘못되면 등록을 막습니다.
 - 동일 사용처·사용일자·금액이 24시간 안에 다시 등록되면 중복 의심 표시를 보여주지만 등록은 막지 않습니다.
 - 중복 예약과 등록 내역은 원자적 Firestore commit으로 저장합니다. 동일 요청의 재시도는 같은 등록번호를 사용해 중복 저장을 방지합니다.
@@ -59,5 +59,21 @@ npm run test:e2e
 ```
 
 개발 주소는 `/receipt/`, 기본 포트는 3000입니다. `src/firebase-config.js`는 Firebase 웹 프로젝트 설정이며 비밀키가 아닙니다. Firestore REST API만 사용합니다. Storage, Cloud Functions, Authentication, OpenAI API, 별도 서버 및 Blaze 요금제는 사용하지 않습니다.
+
+### Cloud Vision 키 설정
+
+Cloud Vision을 사용할 Google Cloud 프로젝트에서 **Cloud Vision API를 사용 설정**하고 API 키를 만든 뒤, 키 제한을 설정하세요.
+
+1. 애플리케이션 제한은 HTTP 리퍼러로 설정하고 `https://sskim4912.github.io/receipt/*`만 허용합니다.
+2. API 제한은 Cloud Vision API만 허용합니다. 사용량 한도도 설정하세요.
+3. 저장소 루트에 `.env.local` 파일을 만들고 아래처럼 키를 입력합니다. 이 파일은 `.gitignore` 대상입니다.
+
+   ```env
+   VITE_CLOUD_VISION_API_KEY=여기에_제한된_API_키
+   ```
+
+4. `npm run build`로 `docs/`를 다시 만들고 변경된 `docs/`를 GitHub Pages에 배포합니다. `.env.local` 자체는 커밋하지 마세요.
+
+브라우저에서 직접 호출하므로 API 키는 빌드된 자바스크립트에서 누구나 볼 수 있습니다. 이 키는 비밀로 취급할 수 없으며 반드시 리퍼러·API·사용량 제한을 적용해야 합니다. 서비스 계정 JSON 키 파일을 업로드하거나 작성하지 마세요. 키가 아직 설정되지 않았거나 OCR에 실패해도 사진 미리보기와 직접 입력은 계속 사용할 수 있습니다. Cloud Vision은 별도 Google Cloud 프로젝트의 요금·쿼터를 따르며 Firebase Spark와 별도입니다.
 
 `npm run build`는 GitHub Pages용 파일을 `docs/`에 생성합니다. Pages 배포 원본은 `main` 브랜치의 `/docs`입니다. 테스트 결과는 [검증 현황](documentation/VALIDATION.md), 배포 안내는 [배포 안내](documentation/DEPLOYMENT.md)에 정리했습니다.

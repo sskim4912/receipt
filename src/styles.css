@@ -374,6 +374,13 @@ fieldset {
   margin-top: 12px;
   color: #8293a3;
 }
+.ocr-status {
+  margin: 10px 0 0;
+  color: #315b8f;
+  font-size: 13px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
 .core-summary {
   margin: 0 0 24px;
 }
