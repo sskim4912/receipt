@@ -22,7 +22,7 @@ import { inspectPhoto } from './lib/photo.js';
 import { recognizeReceipt } from './lib/receipt-ocr.js';
 import { makeGate, verifyGate } from './lib/admin-gate.js';
 import { Icon, Modal, Field, ErrorBox } from './ui.jsx';
-import gsLogo from './assets/gs-construction-logo.svg';
+import gsLogo from './assets/gs-construction-logo.png';
 import './styles.css';
 const repo = new ReceiptRepository(new FirestoreRest(firebaseConfig));
 const statusKeys = Object.keys(STATUSES);
