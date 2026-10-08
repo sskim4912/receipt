@@ -3,6 +3,11 @@
   "name": "receipt",
   "main": "src/worker.js",
   "compatibility_date": "2026-10-08",
+  "vars": {
+    "DOCUMENT_AI_PROJECT_ID": "api-for-anythingllm-1",
+    "DOCUMENT_AI_LOCATION": "us",
+    "DOCUMENT_AI_PROCESSOR_ID": "e57b60674ad106a3"
+  },
   "assets": {
     "directory": "./docs",
     "binding": "ASSETS",

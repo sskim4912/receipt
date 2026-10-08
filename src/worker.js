@@ -91,14 +91,18 @@ async function processDocument(request, env) {
   const missing = ['DOCUMENT_AI_PROJECT_ID', 'DOCUMENT_AI_LOCATION', 'DOCUMENT_AI_PROCESSOR_ID'].filter(
     (key) => !env[key],
   );
-  if (missing.length || !env.DOCUMENT_AI_SERVICE_ACCOUNT_JSON)
+  if (missing.length || !env.DOCUMENT_AI_SERVICE_ACCOUNT_JSON) {
+    const missingBindings = [
+      ...missing,
+      ...(!env.DOCUMENT_AI_SERVICE_ACCOUNT_JSON ? ['DOCUMENT_AI_SERVICE_ACCOUNT_JSON (Secret)'] : []),
+    ];
     return json(
       {
-        error:
-          'Cloudflare Worker에 Document AI 프로젝트, 위치, 프로세서 정보와 서비스 계정 Secret을 설정해주세요.',
+        error: `Cloudflare Worker 설정이 적용되지 않았습니다. 누락된 항목: ${missingBindings.join(', ')}`,
       },
       503,
     );
+  }
 
   const declaredLength = Number(request.headers.get('content-length') || 0);
   if (declaredLength > MAX_IMAGE_BYTES * 1.4)

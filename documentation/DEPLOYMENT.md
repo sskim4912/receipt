@@ -18,9 +18,9 @@ Cloudflare의 Workers & Pages에서 GitHub 저장소 `sskim4912/receipt`를 연�
 1. Google Cloud에서 Document AI API를 활성화하고 Expense Parser 프로세서를 생성합니다.
 2. 프로세서가 있는 프로젝트에서 서비스 계정을 생성하고 `Document AI API User` 역할을 부여합니다.
 3. 서비스 계정 JSON 키를 생성합니다. JSON 파일을 저장소나 브라우저에 넣지 않습니다.
-4. Cloudflare 대시보드의 Worker 설정에서 일반 변수 `DOCUMENT_AI_PROJECT_ID`, `DOCUMENT_AI_LOCATION`, `DOCUMENT_AI_PROCESSOR_ID`를 추가합니다.
-5. Worker의 Variables and Secrets 메뉴에서 `DOCUMENT_AI_SERVICE_ACCOUNT_JSON`을 Secret으로 추가하고 JSON 파일의 전체 내용을 값으로 넣습니다.
-6. 저장한 뒤 Worker를 다시 배포합니다.
+4. 프로젝트 ID·위치·프로세서 ID는 `wrangler.jsonc`의 `vars`에 설정되어 있으므로, 실제 프로세서 값을 확인하고 필요하면 해당 파일을 수정합니다.
+5. Worker의 Variables and Secrets 메뉴에서 `DOCUMENT_AI_SERVICE_ACCOUNT_JSON`을 Secret으로 추가하고 JSON 파일의 전체 내용을 값으로 넣습니다. Variable 유형으로 등록하지 않습니다.
+6. 저장한 뒤 Worker를 다시 배포합니다. Worker build는 `wrangler.jsonc`를 기준으로 배포하므로 일반 변수는 이 파일에서 관리합니다.
 
 Worker는 서비스 계정 키로 Google OAuth 토큰을 발급하고, 사진을 메모리에 받아 `:process` API로 전달합니다. 이미지는 Cloudflare 저장소나 Firestore에 기록하지 않습니다. 지원되는 JPEG, PNG, WebP, TIFF, PDF만 전달하며 20MB를 넘는 파일은 거부합니다.
 

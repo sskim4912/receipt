@@ -64,11 +64,7 @@ npm run test:e2e
 
 Google Cloud에서 Document AI API를 활성화하고 Expense Parser 프로세서를 생성하세요. 서비스 계정에 `Document AI API User` 역할을 부여한 뒤 JSON 키를 생성합니다. JSON 키는 저장소나 브라우저에 넣지 말고 Cloudflare Worker의 Secret `DOCUMENT_AI_SERVICE_ACCOUNT_JSON`으로 등록하세요.
 
-Worker에 다음 일반 변수를 설정합니다.
-
-- `DOCUMENT_AI_PROJECT_ID`: Google Cloud 프로젝트 ID
-- `DOCUMENT_AI_LOCATION`: 프로세서 위치 (예: `us` 또는 `eu`)
-- `DOCUMENT_AI_PROCESSOR_ID`: 생성한 Expense Parser의 ID
+프로젝트 ID·위치·프로세서 ID는 `wrangler.jsonc`의 `vars`에 둡니다. Git 배포마다 같은 값이 적용됩니다. 서비스 계정 JSON만 Cloudflare Worker의 Secret `DOCUMENT_AI_SERVICE_ACCOUNT_JSON`으로 등록하세요.
 
 저장소 루트의 `wrangler.jsonc`는 `docs/`를 정적 자산으로 제공하고 `/api/document-ai`를 Worker로 연결합니다. 로컬 개발은 `npm run build` 후 `npm run worker:dev`, 배포는 `npm run build` 후 `npm run worker:deploy`를 사용합니다. Cloudflare Git 연결 화면에는 Build command `npm run build`, Deploy command `npx wrangler deploy`를 입력하고 Preview command는 기본값을 유지합니다.
 
