@@ -1,4 +1,4 @@
-Production redeploy
+Production redeploy1
 # GS건설 Aurora Project 영수증 관리
 
 Cloudflare Workers에서 사이트와 Document AI 요청 Worker를 함께 제공합니다. 현재 배포 전 준비 단계입니다.
