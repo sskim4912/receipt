@@ -1,30 +1,31 @@
-# 배포·운영 범위
+# Cloudflare Workers와 Google Document AI 배포
 
-## GitHub Pages
+## Cloudflare 프로젝트 설정
 
-저장소 `sskim4912/receipt`의 `main` 브랜치 `/docs`를 Pages 배포 원본으로 사용합니다. 앱 주소는 **https://sskim4912.github.io/receipt/** 입니다.
+Cloudflare의 Workers & Pages에서 GitHub 저장소 `sskim4912/receipt`를 연결합니다.
 
-```bash
-npm ci
-npm test
-npm run build
-npm run test:e2e
-```
+- Project name: `receipt`
+- Build command: `npm run build`
+- Deploy command: `npx wrangler deploy`
+- Preview command: Cloudflare 기본값을 유지합니다.
+- Preview builds: 켜도 됩니다.
+- Cloudflare Access: 직원이 공개 사이트를 이용하는 현재 흐름에서는 끕니다.
 
-소스 수정 뒤 빌드한 `docs/` 결과를 소스와 함께 `main`에 반영합니다. 개발 도구가 필요한 사람은 Node.js·npm을 사용하지만, 직원은 PC/모바일 브라우저만 사용합니다.
+`wrangler.jsonc`가 Worker 진입 파일 `src/worker.js`와 정적 파일 디렉터리 `docs/`를 설정합니다. Vite 빌드가 `docs/`를 만든 뒤 Wrangler가 Worker와 정적 자산을 배포합니다. Cloudflare 배포에서는 앱이 도메인 루트에서 실행되며 `/api/document-ai`가 같은 Worker로 전달됩니다.
 
-## Firebase Spark
+## Google Cloud Document AI 설정
 
-Firebase Firestore REST API만 연결합니다. Storage, Cloud Functions, Authentication, OpenAI API, 별도 서버는 사용하지 않으며 Blaze 요금제로 변경하지 않습니다. 웹 설정은 `src/firebase-config.js`에 있습니다. Cloud Vision OCR은 별도 Google Cloud 프로젝트의 Vision API REST endpoint를 브라우저에서 직접 호출합니다.
+1. Google Cloud에서 Document AI API를 활성화하고 Expense Parser 프로세서를 생성합니다.
+2. 프로세서가 있는 프로젝트에서 서비스 계정을 생성하고 `Document AI API User` 역할을 부여합니다.
+3. 서비스 계정 JSON 키를 생성합니다. JSON 파일을 저장소나 브라우저에 넣지 않습니다.
+4. Cloudflare 대시보드의 Worker 설정에서 일반 변수 `DOCUMENT_AI_PROJECT_ID`, `DOCUMENT_AI_LOCATION`, `DOCUMENT_AI_PROCESSOR_ID`를 추가합니다.
+5. Worker의 Variables and Secrets 메뉴에서 `DOCUMENT_AI_SERVICE_ACCOUNT_JSON`을 Secret으로 추가하고 JSON 파일의 전체 내용을 값으로 넣습니다.
+6. 저장한 뒤 Worker를 다시 배포합니다.
 
-현재 Firestore 규칙 `allow read, write: if true`에서는 누구나 데이터와 앱 설정에 접근할 수 있습니다. 앱의 관리자 암호는 테스트용 화면 잠금일 뿐 데이터 권한 검사가 아닙니다. 실제 민감정보 사용 전 인증 기반 보안 규칙을 별도로 마련해야 합니다.
+Worker는 서비스 계정 키로 Google OAuth 토큰을 발급하고, 사진을 메모리에 받아 `:process` API로 전달합니다. 이미지는 Cloudflare 저장소나 Firestore에 기록하지 않습니다. 지원되는 JPEG, PNG, WebP, TIFF, PDF만 전달하며 20MB를 넘는 파일은 거부합니다.
 
-## 직원 화면
+실제 OCR 응답은 Google Cloud 프로젝트, 프로세서 위치·ID, 서비스 계정 권한이 설정된 뒤 확인할 수 있습니다. Document AI 비용과 할당량은 Cloudflare 무료 플랜 및 Firebase Spark와 별도입니다. 한국어 영수증에서 필요한 엔터티가 반환되는지도 실제 샘플로 검증해야 합니다.
 
-직원 화면은 촬영한 영수증을 브라우저에서 임시 미리보기로 보여주며, 키가 설정된 경우 Google Cloud Vision OCR을 한 번 호출해 업체명·총 승인 금액·사용일자와 주소 라벨이 명확한 장소를 읽습니다. 이미지 데이터는 Vision API로 전송되지만 Firebase Storage나 Firestore에는 저장하지 않습니다. 못 읽은 값은 빈 채로 두고 직접 입력을 허용합니다. 영수증 원본은 사용자가 별도로 보관합니다.
+## 이전 주소
 
-## Cloud Vision API 키 설정
-
-별도 Google Cloud 프로젝트에서 Cloud Vision API를 활성화하고 제한된 API 키를 만든 뒤 `index.html`의 `<meta name="google-cloud-vision-api-key" content="">`의 `content`에 입력합니다. 허용 HTTP 리퍼러는 `https://sskim4912.github.io/receipt/*`, API 제한은 Cloud Vision API로 한정하고 쿼터를 설정하세요. `npm run build` 후 `index.html`과 `docs/`를 배포합니다. 키는 HTML에서 공개되므로 제한 없는 키를 배포하지 마세요. 서비스 계정 JSON은 브라우저에 넣지 않습니다.
-
-Cloud Vision 요금과 무료 쿼터는 Firebase Spark와 별도 Google Cloud 프로젝트 기준입니다. 현재 코드는 이미지 업로드 기능을 추가하지 않았으며, Firebase Storage·Cloud Functions·별도 서버도 사용하지 않습니다. OCR 미설정 또는 실패 시 수기 입력 경로가 유지됩니다.
+기존 GitHub Pages 주소는 `https://sskim4912.github.io/receipt/`입니다. Cloudflare Worker에 Document AI 설정을 완료하고 실제 호출을 확인한 다음 새 `workers.dev` 주소로 전환합니다.
