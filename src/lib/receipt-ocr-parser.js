@@ -50,7 +50,7 @@ export function parseReceiptText(text = '') {
   const labelled = (pattern) => {
     const candidates = [];
     for (let i = 0; i < lines.length; i++) {
-      const compact = lines[i].replace(/\s/g, '').replace(/^[*#·=_.-]+/, '');
+      const compact = lines[i].replace(/\s/g, '').replace(/^[\[*#·=_.-]+/, '');
       const match = compact.match(pattern);
       if (!match) continue;
       // A value can be on the following line, but only when the label line has
@@ -58,6 +58,7 @@ export function parseReceiptText(text = '') {
       const suffix = compact
         .slice(match.index + match[0].length)
         .replace(/^(?:\([^)]*\))+/g, '')
+        .replace(/^\]+/, '')
         .replace(/^[:：=₩￦]+/, '');
       const value = suffix || (lines[i + 1] || '').replace(/\s/g, '');
       // Korean OCR sometimes reads the unit 원 as 운. This does not change
@@ -73,10 +74,10 @@ export function parseReceiptText(text = '') {
     return unique.length === 1 ? String(unique[0]) : '';
   };
   const paidAmount = labelled(
-    /^(?:총결제금액|결제총액|실결제금액|총승인금액|결제금액|결제합계|승인금액|영수금액|받은금액|받을금액)/i,
+    /^(?:총결제금액|결제총액|실결제금액|총승인금액|결제금액|결제요금|결제합계|승인금액|영수금액|받은금액|받은돈|받을금액)/i,
   );
   const salesTotal = labelled(
-    /^(?:매출합계|주문합계|주문총액|판매합계|총합계금액|합계금액|총금액|합계|총액|TOTAL(?:AMOUNT)?)/i,
+    /^(?:카드매출|매출합계|주문합계|주문총액|판매합계|총합계금액|합계금액|총금액|합계|총액|TOTAL(?:AMOUNT)?)/i,
   );
   const total = paidAmount || salesTotal;
   if (total) fields.amount = total;

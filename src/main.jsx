@@ -70,7 +70,11 @@ function CoreFields({ value, onChange, team = false }) {
               type={k === 'receiptDate' ? 'date' : k === 'receiptTime' ? 'time' : 'text'}
               inputMode={['amount', 'approvalNumber'].includes(k) ? 'numeric' : undefined}
               value={value[k]}
-              required={!team && (k !== 'approvalNumber' || value.approvalState === 'present')}
+              required={
+                !team &&
+                k !== 'businessNumber' &&
+                (k !== 'approvalNumber' || value.approvalState === 'present')
+              }
               disabled={k === 'approvalNumber' && value.approvalState !== 'present'}
               maxLength={k === 'merchantName' ? 160 : k === 'approvalNumber' ? 40 : 12}
               pattern={k === 'amount' ? '[0-9]+' : undefined}
@@ -80,6 +84,7 @@ function CoreFields({ value, onChange, team = false }) {
           </Field>
         ))}
       </div>
+      <p className="muted">영수증에 사업자번호가 없는 경우에는 비워두세요.</p>
       {team ? (
         <label className="field">
           <span>승인번호 상태</span>

@@ -364,7 +364,7 @@ test('실제 승인번호 없음은 표시하고 동일 금액 재등록은 경�
     await page.getByLabel('승인일자', { exact: true }).fill('2026-10-08');
     await page.getByLabel('승인시간', { exact: true }).fill('18:32');
     await page.getByLabel('업체명', { exact: true }).fill('상점');
-    await page.getByLabel('사업자번호', { exact: true }).fill('123-45-67890');
+    await page.getByLabel('사업자번호', { exact: true }).fill(i === 0 ? '' : '123-45-67890');
     await page.getByLabel('영수금액', { exact: true }).fill('1000');
     await page.getByLabel('영수증에 승인번호 자체가 없습니다.').check();
     await page.getByRole('button', { name: '입력내용 확인' }).click();

@@ -78,6 +78,24 @@ test('Receipt and approval amounts are parsed from a detailed card receipt', () 
   assert.equal(result.fields.amount, '92000');
   assert.equal(result.fields.receiptTime, '19:16');
 });
+test('Taxi fare without business or approval numbers is left for user confirmation', () => {
+  const result = parseReceiptText(`일반영수증
+가맹점: 개인택시[66091701989]
+거래 일시: 2026.09-02 08:33:08
+승차요금: 17,200원
+결제요금: 17,200원`);
+  assert.equal(result.fields.merchantName, '개인택시[66091701989]');
+  assert.equal(result.fields.receiptDate, '2026-09-02');
+  assert.equal(result.fields.receiptTime, '08:33');
+  assert.equal(result.fields.amount, '17200');
+  assert.equal(result.fields.businessNumber, undefined);
+  assert.equal(result.fields.approvalNumber, undefined);
+  assert.equal(result.complete, false);
+});
+test('Bracketed approval amount and card sales labels are extracted', () => {
+  assert.equal(parseReceiptText('[승인금액] 1,179,000').fields.amount, '1179000');
+  assert.equal(parseReceiptText('카드매출 142,000').fields.amount, '142000');
+});
 test('Unknown approval is never assumed absent; random large numbers and VAT are not total', () => {
   const result = parseReceiptText(
     '영수증\n전화 010-1234-5678\n사업자 123-45-67890\n부가세 1000\n카드 1234567890',

@@ -134,7 +134,6 @@ export function validateInput(core, extras, mode = 'manual') {
     if (!base.receiptDate) throw new Error('승인일자를 입력해주세요.');
     if (!base.receiptTime) throw new Error('승인시간을 입력해주세요.');
     if (!base.merchantName) throw new Error('업체명을 입력해주세요.');
-    if (!base.businessNumber) throw new Error('사업자번호를 입력해주세요.');
     if (base.amount === null || base.amount <= 0)
       throw new Error('영수금액은 1원 이상 입력해주세요.');
     if (base.approvalState === 'unreadable')

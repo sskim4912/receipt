@@ -67,6 +67,12 @@ test('실제 승인번호 없음과 확인불가를 구분, 관리팀 제출도 
 test('사업자번호·전체 카드번호 저장 차단', () => {
   assert.throws(() => validateInput({ ...core, cardLast4: '1234567890123456' }, extras));
   assert.throws(() => validateInput({ ...core, businessNumber: 'bad' }, extras));
+  const withoutBusinessNumber = validateInput(
+    { ...core, businessNumber: '', approvalNumber: '', approvalState: 'absent' },
+    extras,
+  );
+  assert.equal(withoutBusinessNumber.businessNumber, '');
+  assert.equal(withoutBusinessNumber.approvalNumber, null);
 });
 test('중복키는 날짜·금액·승인번호 기준, 실제 승인번호 없으면 생성하지 않음', async () => {
   const r = validateInput(core, extras);
