@@ -26,7 +26,7 @@ test('Korean receipt: labeled totals, spaced labels, date and leading-zero appro
 });
 test('English receipt and next-line total', () => {
   const result = parseReceiptText(
-    'AURORA CAFE\nDATE 26/10/08\nTOTAL\n12,000\nAPPROVAL NO: 00001234',
+    'AURORA CAFE\nDATE 26/10/08 18:32\nBUSINESS NUMBER: 1234567890\nTOTAL\n12,000\nAPPROVAL NO: 00001234',
   );
   assert.equal(result.complete, true);
   assert.equal(result.fields.merchantName, 'AURORA CAFE');

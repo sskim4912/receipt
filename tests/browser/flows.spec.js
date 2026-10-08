@@ -80,13 +80,13 @@ async function core(page, approval = '0027236059') {
   await expect(page.getByRole('heading', { name: '영수증 직접 입력', exact: true })).toBeVisible({
     timeout: 60000,
   });
-  await expect(page.getByLabel('사용일자', { exact: true })).toHaveValue('2026-10-08');
-  await expect(page.getByLabel('사용처', { exact: true })).toHaveValue('대산보쌈');
-  await page.getByLabel('사용금액', { exact: true }).fill('1.5');
-  await expect(page.getByLabel('사용금액', { exact: true })).toHaveValue('1.5');
+  await expect(page.getByLabel('승인일자', { exact: true })).toHaveValue('2026-10-08');
+  await expect(page.getByLabel('업체명', { exact: true })).toHaveValue('대산보쌈');
+  await page.getByLabel('영수금액', { exact: true }).fill('1.5');
+  await expect(page.getByLabel('영수금액', { exact: true })).toHaveValue('1.5');
   await page.getByRole('button', { name: '입력내용 확인', exact: true }).click();
   await expect(page.getByRole('heading', { name: '영수증 직접 입력', exact: true })).toBeVisible();
-  await page.getByLabel('사용금액', { exact: true }).fill('92000');
+  await page.getByLabel('영수금액', { exact: true }).fill('92000');
   await page.getByLabel('승인번호', { exact: true }).fill(approval);
   await page.getByRole('button', { name: '입력내용 확인', exact: true }).click();
   await expect(
@@ -204,9 +204,9 @@ test('실제 한국어 OCR 자동 채움·원본 확인 후 저장·OCR 메타�
   await expect(page.getByRole('heading', { name: '영수증 직접 입력', exact: true })).toBeVisible({
     timeout: 60000,
   });
-  await expect(page.getByLabel('사용일자', { exact: true })).toHaveValue('2026-10-08');
-  await expect(page.getByLabel('사용처', { exact: true })).toHaveValue('대산보쌈');
-  await expect(page.getByLabel('사용금액', { exact: true })).toHaveValue('92000');
+  await expect(page.getByLabel('승인일자', { exact: true })).toHaveValue('2026-10-08');
+  await expect(page.getByLabel('업체명', { exact: true })).toHaveValue('대산보쌈');
+  await expect(page.getByLabel('영수금액', { exact: true })).toHaveValue('92000');
   await expect(page.getByLabel('승인번호', { exact: true })).toHaveValue('0027236059');
   expect([...fake.docs.values()].filter((r) => r.data.receiptId)).toHaveLength(0);
   await page.getByRole('button', { name: '입력내용 확인', exact: true }).click();
@@ -301,7 +301,7 @@ test('정상 직접 입력·잘못된 인원 차단·조회·기간/사용자 �
   await openRow(page);
   await page.getByRole('button', { name: '수정', exact: true }).click();
   const edit = page.getByRole('dialog', { name: '영수증 수정' });
-  await edit.getByLabel('사용금액', { exact: true }).fill('95000');
+  await edit.getByLabel('영수금액', { exact: true }).fill('95000');
   await edit.getByRole('button', { name: '수정 저장', exact: true }).click();
   await expect(edit).toBeHidden();
   await expect(page.getByText('95,000원').first()).toBeVisible();
@@ -361,9 +361,11 @@ test('실제 승인번호 없음은 표시하고 동일 금액 재등록은 경�
   await start(page);
   for (let i = 0; i < 2; i++) {
     await manualAfterThreeFailures(page);
-    await page.getByLabel('사용일자', { exact: true }).fill('2026-10-08');
-    await page.getByLabel('사용처', { exact: true }).fill('상점');
-    await page.getByLabel('사용금액', { exact: true }).fill('1000');
+    await page.getByLabel('승인일자', { exact: true }).fill('2026-10-08');
+    await page.getByLabel('승인시간', { exact: true }).fill('18:32');
+    await page.getByLabel('업체명', { exact: true }).fill('상점');
+    await page.getByLabel('사업자번호', { exact: true }).fill('123-45-67890');
+    await page.getByLabel('영수금액', { exact: true }).fill('1000');
     await page.getByLabel('영수증에 승인번호 자체가 없습니다.').check();
     await page.getByRole('button', { name: '입력내용 확인' }).click();
     await expect(page.getByText('승인번호 없음', { exact: true })).toBeVisible();

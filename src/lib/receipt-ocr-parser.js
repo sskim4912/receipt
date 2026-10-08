@@ -9,20 +9,38 @@ export function parseReceiptText(text = '') {
     .map((s) => s.trim())
     .filter(Boolean);
   const fields = {};
-  const dates = [];
+  const datedLines = [];
+  const timedLines = [];
   for (const line of lines) {
     for (const match of line.matchAll(
       /\b(20\d{2}|\d{2})\s*[.\-/년]\s*(\d{1,2})\s*[.\-/월]\s*(\d{1,2})(?:\s*일)?\b/g,
     )) {
       const year = match[1].length === 2 ? '20' + match[1] : match[1];
       const date = `${year}-${match[2].padStart(2, '0')}-${match[3].padStart(2, '0')}`;
-      if (validDate(date)) dates.push(date);
+      if (validDate(date)) datedLines.push({ date, line });
     }
     const time = line.match(/\b([01]?\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?\b/);
-    if (time && !fields.receiptTime) fields.receiptTime = `${time[1].padStart(2, '0')}:${time[2]}`;
+    if (time)
+      timedLines.push({
+        line,
+        labeled: /(?:승인시간|거래시간|결제시간|계산시간|시간|시각)/.test(line.replace(/\s/g, '')),
+        time: `${time[1].padStart(2, '0')}:${time[2]}`,
+      });
   }
-  const uniqueDates = [...new Set(dates)];
+  const approvalDateLines = datedLines.filter(({ line }) =>
+    /(?:승인일시|승인일자|승인일|거래일시|결제일시)/.test(line.replace(/\s/g, '')),
+  );
+  const dateCandidates = approvalDateLines.length ? approvalDateLines : datedLines;
+  const uniqueDates = [...new Set(dateCandidates.map(({ date }) => date))];
   if (uniqueDates.length === 1) fields.receiptDate = uniqueDates[0];
+  const selectedTime =
+    timedLines.find(({ line }) => approvalDateLines.some((entry) => entry.line === line)) ||
+    timedLines.find(({ line }) =>
+      datedLines.some((entry) => entry.date === fields.receiptDate && entry.line === line),
+    ) ||
+    timedLines.find(({ labeled }) => labeled) ||
+    (new Set(timedLines.map(({ time }) => time)).size === 1 ? timedLines[0] : null);
+  if (selectedTime) fields.receiptTime = selectedTime.time;
 
   const labelled = (pattern) => {
     const candidates = [];
@@ -68,10 +86,20 @@ export function parseReceiptText(text = '') {
     fields.approvalNumber = approvals[0];
     fields.approvalState = 'present';
   }
-  const businessNumbers = lines
-    .map((line) => line.match(/(\d{3}\s*-\s*\d{2}\s*-\s*\d{5})/))
-    .filter(Boolean);
-  if (businessNumbers.length) fields.businessNumber = businessNumbers[0][1].replace(/\s/g, '');
+  const businessNumbers = lines.flatMap((line) => {
+    const compact = line.replace(/\s/g, '');
+    const labeled = compact.match(
+      /(?:사업자등록번호|사업자번호|사업자등록|사업자|BUSINESS(?:REGISTRATION)?(?:NO|NUMBER)?)[：:#-]?([0-9-]{10,12})/i,
+    );
+    const standard = line.match(/(\d{3}\s*-\s*\d{2}\s*-\s*\d{5})/);
+    const raw = labeled?.[1] || standard?.[1]?.replace(/\s/g, '');
+    if (!raw) return [];
+    const digits = raw.replace(/\D/g, '');
+    return digits.length === 10
+      ? [`${digits.slice(0, 3)}-${digits.slice(3, 5)}-${digits.slice(5)}`]
+      : [];
+  });
+  if (new Set(businessNumbers).size === 1) fields.businessNumber = businessNumbers[0];
   const businessMerchant = lines
     .map((line) => line.match(/^(.{2,80}?)(?:\s*)(\d{3}\s*-\s*\d{2}\s*-\s*\d{5})/))
     .find(
@@ -103,8 +131,13 @@ export function parseReceiptText(text = '') {
       );
     if (heading) fields.merchantName = heading.replace(/^[*#=\s]+|[*#=\s]+$/g, '');
   }
-  const complete = ['receiptDate', 'merchantName', 'amount', 'approvalNumber'].every(
-    (key) => fields[key],
-  );
+  const complete = [
+    'receiptDate',
+    'receiptTime',
+    'merchantName',
+    'businessNumber',
+    'amount',
+    'approvalNumber',
+  ].every((key) => fields[key]);
   return { fields, complete };
 }

@@ -8,16 +8,16 @@ export const STATUSES = {
 export const METHODS = { manual: '수기입력', team: '관리팀 제출' };
 export const CATEGORIES = ['식비', '교통비', '숙박비', '자재·소모품', '기타'];
 export const LABELS = {
-  receiptDate: '사용일자',
-  receiptTime: '사용시간',
-  merchantName: '사용처',
-  amount: '사용금액',
+  receiptDate: '승인일자',
+  receiptTime: '승인시간',
+  merchantName: '업체명',
+  amount: '영수금액',
   approvalNumber: '승인번호',
   category: '분류',
   paymentMethod: '결제수단',
   supplyAmount: '공급가액',
   vatAmount: '부가세',
-  businessNumber: '사업자등록번호',
+  businessNumber: '사업자번호',
   cardLast4: '카드번호 마지막 4자리',
   items: '품목/메뉴',
   employeeId: '사번(선택)',
@@ -85,11 +85,11 @@ export const extrasSchema = z.object({
 const sharedCore = {
   receiptDate: z.union([
     z.literal('').transform(() => null),
-    z.string().refine(validDate, '사용일자를 확인해주세요.'),
+    z.string().refine(validDate, '승인일자를 확인해주세요.'),
   ]),
   receiptTime: z.union([
     z.literal(''),
-    z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, '사용시간을 확인해주세요.'),
+    z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, '승인시간을 확인해주세요.'),
   ]),
   merchantName: optional,
   amount: optionalMoney,
@@ -131,10 +131,12 @@ export function validateInput(core, extras, mode = 'manual') {
   const extra = extrasSchema.parse(extras),
     base = coreBase.parse(core);
   if (mode === 'manual') {
-    if (!base.receiptDate) throw new Error('사용일자를 입력해주세요.');
-    if (!base.merchantName) throw new Error('사용처를 입력해주세요.');
+    if (!base.receiptDate) throw new Error('승인일자를 입력해주세요.');
+    if (!base.receiptTime) throw new Error('승인시간을 입력해주세요.');
+    if (!base.merchantName) throw new Error('업체명을 입력해주세요.');
+    if (!base.businessNumber) throw new Error('사업자번호를 입력해주세요.');
     if (base.amount === null || base.amount <= 0)
-      throw new Error('사용금액은 1원 이상의 숫자로 입력해주세요.');
+      throw new Error('영수금액은 1원 이상 입력해주세요.');
     if (base.approvalState === 'unreadable')
       throw new Error('승인번호를 입력하거나 실제 승인번호 없음을 선택해주세요.');
   }
@@ -197,6 +199,7 @@ const csvFields = [
   'receiptDate',
   'receiptTime',
   'merchantName',
+  'businessNumber',
   'category',
   'amount',
   'approvalNumber',

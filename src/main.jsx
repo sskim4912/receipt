@@ -35,7 +35,14 @@ function Badge({ status }) {
 function Summary({ core }) {
   return (
     <dl className="core-summary">
-      {['receiptDate', 'merchantName', 'amount', 'approvalNumber'].map((k) => (
+      {[
+        'merchantName',
+        'businessNumber',
+        'receiptDate',
+        'receiptTime',
+        'amount',
+        'approvalNumber',
+      ].map((k) => (
         <div key={k}>
           <dt>{LABELS[k]}</dt>
           <dd className={core[k] == null ? 'unknown' : ''}>{display(core, k)}</dd>
@@ -49,17 +56,25 @@ function CoreFields({ value, onChange, team = false }) {
   return (
     <>
       <div className="form-grid">
-        {['receiptDate', 'merchantName', 'amount', 'approvalNumber'].map((k) => (
+        {[
+          'merchantName',
+          'businessNumber',
+          'receiptDate',
+          'receiptTime',
+          'amount',
+          'approvalNumber',
+        ].map((k) => (
           <Field key={k} label={LABELS[k]}>
             <input
               aria-label={LABELS[k]}
-              type={k === 'receiptDate' ? 'date' : 'text'}
+              type={k === 'receiptDate' ? 'date' : k === 'receiptTime' ? 'time' : 'text'}
               inputMode={['amount', 'approvalNumber'].includes(k) ? 'numeric' : undefined}
               value={value[k]}
               required={!team && (k !== 'approvalNumber' || value.approvalState === 'present')}
               disabled={k === 'approvalNumber' && value.approvalState !== 'present'}
               maxLength={k === 'merchantName' ? 160 : k === 'approvalNumber' ? 40 : 12}
               pattern={k === 'amount' ? '[0-9]+' : undefined}
+              placeholder={k === 'amount' ? '영수금액·결제금액·매출합계·승인금액' : undefined}
               onChange={(e) => set(k, e.target.value)}
             />
           </Field>
@@ -120,15 +135,7 @@ function CoreFields({ value, onChange, team = false }) {
               ))}
             </select>
           </Field>
-          {[
-            'receiptTime',
-            'paymentMethod',
-            'supplyAmount',
-            'vatAmount',
-            'businessNumber',
-            'cardLast4',
-            'items',
-          ].map((k) => (
+          {['paymentMethod', 'supplyAmount', 'vatAmount', 'cardLast4', 'items'].map((k) => (
             <label className="field" key={k}>
               <span>{LABELS[k]}</span>
               <input
@@ -349,7 +356,7 @@ function App() {
       setCore((previous) => ({ ...previous, ...result.fields }));
       if (result.complete) {
         setPhotoNotice(
-          '자동 인식했습니다. 날짜·사용처·금액·승인번호를 원본과 반드시 비교해주세요.',
+          '자동 인식했습니다. 업체명·사업자번호·승인일시·금액·승인번호를 원본과 반드시 비교해주세요.',
         );
         setMode('manual');
         setScreen('manual');
@@ -604,7 +611,7 @@ function App() {
                     '영수증 전체 촬영',
                     '빛 반사 없이',
                     '흔들림 없이',
-                    '업체명 · 금액 · 날짜 · 승인번호가 선명하게',
+                    '업체명 · 사업자번호 · 승인일시 · 금액 · 승인번호가 선명하게',
                   ].map((t) => (
                     <li key={t}>
                       <Icon name="check" size={16} />
@@ -619,8 +626,8 @@ function App() {
             <section className="card">
               <h2>영수증 직접 입력</h2>
               <p className="muted">
-                자동 인식값은 틀릴 수 있습니다. 핵심 4개 항목을 원본과 비교하고 수정해주세요. 읽을
-                수 없는 값은 추정하지 마세요.
+                자동 인식값은 틀릴 수 있습니다. 업체명·사업자번호·승인일시·금액·승인번호를 원본과
+                비교하고 수정해주세요. 읽을 수 없는 값은 추정하지 마세요.
               </p>
               {photoNotice && (
                 <div className="notice" role="status">

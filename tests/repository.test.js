@@ -8,7 +8,9 @@ import { FakeFirestore } from './fake-firestore.js';
 const core = {
   ...EMPTY_CORE,
   receiptDate: '2026-10-08',
+  receiptTime: '18:32',
   merchantName: '대산보쌈',
+  businessNumber: '123-45-67890',
   amount: '92000',
   approvalNumber: '0027236059',
 };
