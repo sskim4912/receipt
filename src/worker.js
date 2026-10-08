@@ -166,10 +166,17 @@ async function classifyReceipt(token, env, ocrText) {
       },
     }),
   });
-  const payload = await response.json().catch(() => ({}));
+  const responseText = await response.text();
+  let payload = {};
+  try {
+    payload = JSON.parse(responseText);
+  } catch {
+    // Keep a short upstream response excerpt for actionable provider errors.
+  }
   if (!response.ok) {
+    const detail = String(payload.error?.message || responseText || '').replace(/\s+/g, ' ').slice(0, 400);
     throw new Error(
-      payload.error?.message || `Vertex AI 요청에 실패했습니다 (HTTP ${response.status}).`,
+      `Vertex AI ${model} (${location}) 요청 실패 (HTTP ${response.status})${detail ? `: ${detail}` : '.'}`,
     );
   }
   const text = payload.candidates?.[0]?.content?.parts?.map((part) => part.text || '').join('') || '';
