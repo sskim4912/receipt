@@ -29,22 +29,50 @@ function labeledMerchant(text) {
 }
 
 function labeledLocation(text) {
-  for (const line of text.split(/\r?\n/)) {
-    const match = line.match(
-      /(?:\[\s*)?(?:사업장\s*주소|가맹점\s*주소|주소|소재지|사용\s*장소|장소)(?:\s*\])?\s*[:：]?\s*(.+)$/,
-    );
+  const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const label = /(?:\[\s*)?(?:사업장\s*주소|가맹점\s*주소|주소|소재지|사용\s*장소|장소)(?:\s*\])?\s*[:：]?\s*/i;
+  const contactOrOtherField = /\s+(?=(?:TEL|전화|대표자|사업자(?:등록)?번호|승인(?:번호|일시)|거래(?:일시|일자)|계산일자|대표번호)\s*[:：]?)/i;
+  const clean = (value) => value
+    .replace(contactOrOtherField, '\n')
+    .split(/\n/)[0]
+    .replace(/[|｜]+$/, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const plausible = (value) => {
+    if (value.length < 5 || value.length > 160 || !/[가-힣]/.test(value)) return false;
+    if (/(?:사업자|등록번호|승인|매출|영수|결제|카드|전화|TEL|대표자|담당자|품명|금액|일시|일자)/i.test(value)) return false;
+    return /(?:특별시|광역시|특별자치시|특별자치도|충청남도|충청북도|경상남도|경상북도|전라남도|전라북도|충남|충북|경남|경북|전남|전북|강원|경기|제주|서울|부산|대구|인천|광주|대전|울산|세종|서산|천안|당진|아산)/.test(value) &&
+      /(?:시|군|구|읍|면|동|리|로|길|번길|대로)/.test(value);
+  };
+
+  // Prefer a labeled address. Some receipt layouts put the value on the next OCR line.
+  for (let i = 0; i < lines.length; i += 1) {
+    const match = lines[i].match(label);
     if (!match) continue;
-    const value = match[1]
-      .replace(/\s{2,}.*$/, '')
-      .replace(/[|｜]+$/, '')
-      .trim();
-    const looksLikeAddress =
-      value.length >= 6 &&
-      /[가-힣]/.test(value) &&
-      /(?:특별시|광역시|특별자치도|도|시|군|구|읍|면|동|리|로|길)/.test(value);
-    if (looksLikeAddress) return value.slice(0, 160);
+    const sameLine = clean(lines[i].slice(match[0].length));
+    if (plausible(sameLine)) return sameLine.slice(0, 160);
+    if (!sameLine) {
+      const next = clean(lines[i + 1] || '');
+      if (plausible(next)) return next.slice(0, 160);
+    }
   }
-  return '';
+
+  // Many Korean card slips have no address label. Find a region + locality/road
+  // pattern, while rejecting dates, phone numbers, business IDs and payment rows.
+  const candidates = [];
+  for (const rawLine of lines) {
+    const withoutLabel = rawLine.replace(label, '').trim();
+    const value = clean(withoutLabel);
+    if (!plausible(value)) continue;
+    const score = (/(?:특별시|광역시|특별자치도|충청남도|충청북도|경상남도|경상북도|전라남도|전라북도|충남|충북|경남|경북|전남|전북|강원|경기|제주)/.test(value) ? 3 : 0) +
+      (/(?:읍|면|동|리)/.test(value) ? 2 : 0) +
+      (/(?:로|길|번길|대로)\s*\S+/.test(value) ? 2 : 0) +
+      (/\d/.test(value) ? 1 : 0) +
+      (/(?:주소|소재지)/.test(rawLine) ? 4 : 0);
+    candidates.push({ value, score });
+  }
+  candidates.sort((a, b) => b.score - a.score);
+  return candidates[0]?.value.slice(0, 160) || '';
 }
 
 function labeledAmount(text) {
