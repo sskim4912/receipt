@@ -97,6 +97,9 @@ test('사진 미리보기와 필수정보 직접 입력·사진 미전송 저장
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
     page.viewportSize().width,
   );
+  expect(await page.evaluate(() => document.body.scrollWidth)).toBeLessThanOrEqual(
+    page.viewportSize().width,
+  );
   await page.screenshot({ path: `test-results/employee-${info.project.name}.png`, fullPage: true });
 });
 test('정상 직접 입력·잘못된 인원 차단·조회·기간/사용자 필터·수정·상태·CSV·삭제 확인', async ({
@@ -236,6 +239,9 @@ test('모바일 첫 화면에서 전체 필수 항목을 입력할 수 있음', 
   await expect(page.getByLabel('구체적인 사용 목적', { exact: true })).toBeVisible();
   await expect(page.getByLabel('사용장소', { exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+    page.viewportSize().width,
+  );
+  expect(await page.evaluate(() => document.body.scrollWidth)).toBeLessThanOrEqual(
     page.viewportSize().width,
   );
   await page.screenshot({ path: `test-results/home-${info.project.name}.png`, fullPage: true });
