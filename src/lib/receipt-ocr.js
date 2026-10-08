@@ -16,9 +16,30 @@ async function prepareImage(url) {
   context.fillRect(0, 0, canvas.width, canvas.height);
   context.drawImage(image, 0, 0, canvas.width, canvas.height);
   const data = context.getImageData(0, 0, canvas.width, canvas.height);
+  const histogram = new Uint32Array(256);
+  for (let i = 0; i < data.data.length; i += 4) {
+    const gray = Math.round(
+      0.299 * data.data[i] + 0.587 * data.data[i + 1] + 0.114 * data.data[i + 2],
+    );
+    histogram[gray]++;
+  }
+  const percentile = (fraction) => {
+    const target = (data.data.length / 4) * fraction;
+    let total = 0;
+    for (let value = 0; value < histogram.length; value++) {
+      total += histogram[value];
+      if (total >= target) return value;
+    }
+    return 255;
+  };
+  const black = percentile(0.01);
+  const white = percentile(0.99);
   for (let i = 0; i < data.data.length; i += 4) {
     const gray = 0.299 * data.data[i] + 0.587 * data.data[i + 1] + 0.114 * data.data[i + 2];
-    const value = Math.min(255, Math.max(0, (gray - 128) * 1.15 + 128));
+    // Recover faint thermal-print text against the paper/background range.
+    // Blend the normalized level with the original to preserve subtle details.
+    const normalized = white - black >= 32 ? ((gray - black) * 255) / (white - black) : gray;
+    const value = Math.min(255, Math.max(0, normalized * 0.75 + gray * 0.25));
     data.data[i] = data.data[i + 1] = data.data[i + 2] = value;
   }
   context.putImageData(data, 0, 0);

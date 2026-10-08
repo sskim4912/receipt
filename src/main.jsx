@@ -275,7 +275,6 @@ function App() {
     [saved, setSaved] = useState(null),
     [deleteDraft, setDeleteDraft] = useState(false);
   const camera = useRef(),
-    picker = useRef(),
     lock = useRef(false),
     ocrController = useRef(null),
     requestId = useRef(crypto.randomUUID());
@@ -326,8 +325,6 @@ function App() {
       setPhotoNotice(result.notice);
       // Retaking a photo is also a recognition retry. Keep failures until a
       // new receipt is started so three failed attempts reliably reach manual.
-      setCore({ ...EMPTY_CORE });
-      setRecognitionEngine('none');
       setScreen('photo');
       await runOcr(result, attempts);
     } catch (err) {
@@ -347,7 +344,9 @@ function App() {
         onProgress: setOcrProgress,
       });
       setRecognitionEngine('tesseract-browser');
-      setCore({ ...EMPTY_CORE, ...result.fields });
+      // Rephotographing the same receipt refreshes fields that OCR can read and
+      // keeps any values the employee already corrected by hand.
+      setCore((previous) => ({ ...previous, ...result.fields }));
       if (result.complete) {
         setPhotoNotice(
           '자동 인식했습니다. 날짜·사용처·금액·승인번호를 원본과 반드시 비교해주세요.',
@@ -358,7 +357,7 @@ function App() {
         const count = Math.min(3, failures + 1);
         setAttempts(count);
         setPhotoNotice(
-          '일부 항목을 읽지 못했습니다. 읽힌 값은 입력란에 채웠습니다. 재시도하거나 직접 확인·입력해주세요.',
+          '일부 항목을 읽지 못했습니다. 읽힌 값은 입력란에 채웠습니다. 재시도하거나 다시 촬영해주세요. 3회 실패 시 직접 입력으로 전환합니다.',
         );
         if (count >= 3) {
           setMode('manual');
@@ -370,9 +369,8 @@ function App() {
       }
     } catch (err) {
       if (err.name === 'AbortError') {
-        setMode('manual');
-        setScreen('manual');
-        setPhotoNotice('자동 인식을 취소했습니다. 영수증을 보면서 직접 입력해주세요.');
+        setScreen('photo');
+        setPhotoNotice('자동 인식을 취소했습니다. 다시 시도하거나 재촬영해주세요.');
       }
       if (err.name !== 'AbortError') {
         const count = Math.min(3, failures + 1);
@@ -406,15 +404,6 @@ function App() {
       lock.current = false;
       setBusy(false);
     }
-  }
-  function manual() {
-    setMode('manual');
-    setCore((v) => ({
-      ...v,
-      approvalState: v.approvalState === 'unreadable' ? 'present' : v.approvalState,
-    }));
-    setScreen('manual');
-    setError('');
   }
   function team() {
     setMode('team');
@@ -548,6 +537,14 @@ function App() {
             ))}
           </ol>
           <ErrorBox message={error} />
+          <input
+            ref={camera}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            hidden
+            onChange={selectPhoto}
+          />
           {(screen === 'upload' || screen === 'photo') && (
             <section className="upload-card">
               <div className="upload-symbol">
@@ -559,7 +556,7 @@ function App() {
                 선명하게 촬영해주세요.
               </h2>
               <p className="muted">
-                사진을 선택하면 기기 안에서 글자를 자동으로 읽습니다.
+                촬영하면 기기 안에서 글자를 자동으로 읽습니다.
                 <br />
                 사진은 현재 브라우저에서만 확인하며 저장하지 않습니다.
               </p>
@@ -572,24 +569,7 @@ function App() {
                   <Icon name="camera" />
                   {busy ? '자동 인식 중...' : '영수증 촬영'}
                 </button>
-                <button
-                  className="button secondary"
-                  disabled={busy}
-                  onClick={() => picker.current.click()}
-                >
-                  <Icon name="image" />
-                  사진에서 선택
-                </button>
               </div>
-              <input
-                ref={camera}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                hidden
-                onChange={selectPhoto}
-              />
-              <input ref={picker} type="file" accept="image/*" hidden onChange={selectPhoto} />
               {busy && (
                 <p className="loading" role="status">
                   <span className="spinner" />
@@ -598,29 +578,22 @@ function App() {
               )}
               {busy && (
                 <button className="button text full" onClick={() => ocrController.current?.abort()}>
-                  인식 취소 / 직접 입력
+                  인식 취소
                 </button>
               )}
               {photo && <Preview photo={photo} />}
               <div className="notice">
                 {photoNotice ||
-                  '사진 없이 직접 입력할 수도 있습니다. 영수증 원본은 별도로 보관해주세요.'}
+                  '화면의 촬영 버튼으로 다시 찍거나 자동 인식을 재시도할 수 있습니다.'}
                 {attempts > 0 && <small>인식 오류 {attempts}/3</small>}
               </div>
-              {photo && attempts < 3 && (
-                <button className="button secondary full" disabled={busy} onClick={retryOcr}>
-                  자동 인식 재시도
-                </button>
-              )}
-              <button className="button primary full" disabled={busy} onClick={manual}>
-                직접 입력
-              </button>
-              {attempts >= 3 && (
-                <div className="fallback">
-                  <h3>자동 입력이 어려우면 직접 입력해주세요.</h3>
-                  <p>이미지를 읽을 수 없거나 입력하기 어려운 경우 관리팀에 확인을 요청하세요.</p>
-                  <button className="button secondary full" disabled={busy} onClick={team}>
-                    관리팀에 제출
+              {photo && !busy && (
+                <div className="upload-actions">
+                  <button className="button secondary" disabled={attempts >= 3} onClick={retryOcr}>
+                    자동 인식 재시도
+                  </button>
+                  <button className="button secondary" onClick={() => camera.current.click()}>
+                    다시 촬영
                   </button>
                 </div>
               )}
