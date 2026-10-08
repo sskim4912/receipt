@@ -64,27 +64,45 @@ function CoreFields({ value, onChange, team = false }) {
           'amount',
           'approvalNumber',
         ].map((k) => (
-          <Field key={k} label={LABELS[k]}>
+          <Field
+            key={k}
+            label={LABELS[k]}
+            required={!['businessNumber', 'approvalNumber'].includes(k)}
+            hint={
+              k === 'businessNumber'
+                ? '영수증에 없으면 비워두세요.'
+                : k === 'approvalNumber'
+                  ? '자동 인식되며, 읽히지 않아도 등록 가능합니다.'
+                  : undefined
+            }
+          >
             <input
-              aria-label={LABELS[k]}
+              aria-label={k === 'approvalNumber' ? '승인번호' : LABELS[k]}
               type={k === 'receiptDate' ? 'date' : k === 'receiptTime' ? 'time' : 'text'}
               inputMode={['amount', 'approvalNumber'].includes(k) ? 'numeric' : undefined}
               value={value[k]}
-              required={
-                !team &&
-                k !== 'businessNumber' &&
-                (k !== 'approvalNumber' || value.approvalState === 'present')
+              required={!team && !['businessNumber', 'approvalNumber'].includes(k)}
+              disabled={
+                k === 'approvalNumber' &&
+                (team ? value.approvalState !== 'present' : value.approvalState === 'absent')
               }
-              disabled={k === 'approvalNumber' && value.approvalState !== 'present'}
               maxLength={k === 'merchantName' ? 160 : k === 'approvalNumber' ? 40 : 12}
               pattern={k === 'amount' ? '[0-9]+' : undefined}
               placeholder={k === 'amount' ? '영수금액·결제금액·매출합계·승인금액' : undefined}
-              onChange={(e) => set(k, e.target.value)}
+              onChange={(e) => {
+                const next = e.target.value;
+                if (k === 'approvalNumber')
+                  onChange({
+                    ...value,
+                    approvalNumber: next,
+                    approvalState: next ? 'present' : 'unreadable',
+                  });
+                else set(k, next);
+              }}
             />
           </Field>
         ))}
       </div>
-      <p className="muted">영수증에 사업자번호가 없는 경우에는 비워두세요.</p>
       {team ? (
         <label className="field">
           <span>승인번호 상태</span>
@@ -112,13 +130,18 @@ function CoreFields({ value, onChange, team = false }) {
             onChange={(e) =>
               onChange({
                 ...value,
-                approvalState: e.target.checked ? 'absent' : team ? 'unreadable' : 'present',
+                approvalState: e.target.checked ? 'absent' : 'unreadable',
                 approvalNumber: '',
               })
             }
           />
           영수증에 승인번호 자체가 없습니다.
         </label>
+      )}
+      {!team && (
+        <p className="muted">
+          승인번호는 자동으로 읽히면 입력됩니다. 읽히지 않거나 영수증에 없으면 비워둘 수 있습니다.
+        </p>
       )}
       {team && (
         <p className="muted">
@@ -361,7 +384,7 @@ function App() {
       setCore((previous) => ({ ...previous, ...result.fields }));
       if (result.complete) {
         setPhotoNotice(
-          '자동 인식했습니다. 업체명·사업자번호·승인일시·금액·승인번호를 원본과 반드시 비교해주세요.',
+          '업체명·승인일시·금액을 읽었습니다. 사업자번호와 승인번호도 자동 입력되면 원본과 대조해주세요.',
         );
         setMode('manual');
         setScreen('manual');

@@ -143,13 +143,8 @@ export function parseReceiptText(text = '') {
       );
     if (heading) fields.merchantName = heading.replace(/^[*#=\s]+|[*#=\s]+$/g, '');
   }
-  const complete = [
-    'receiptDate',
-    'receiptTime',
-    'merchantName',
-    'businessNumber',
-    'amount',
-    'approvalNumber',
-  ].every((key) => fields[key]);
+  const complete = ['receiptDate', 'receiptTime', 'merchantName', 'amount'].every(
+    (key) => fields[key],
+  );
   return { fields, complete };
 }

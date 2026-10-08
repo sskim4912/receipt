@@ -16,9 +16,11 @@ const driver = new FirestoreRest(firebaseConfig),
 const core = {
   ...EMPTY_CORE,
   receiptDate: '2026-10-08',
+  receiptTime: '12:00',
   merchantName: '자동 검증용 임시 상점',
   amount: '1000',
   approvalNumber: Date.now().toString(),
+  approvalState: 'present',
 };
 const extras = {
   employeeId: 'TEST',

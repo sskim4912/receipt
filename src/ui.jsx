@@ -106,11 +106,11 @@ export function ErrorBox({ message }) {
     </div>
   ) : null;
 }
-export function Field({ label, children, hint }) {
+export function Field({ label, children, hint, required = true }) {
   return (
     <label className="field">
       <span>
-        {label} <i aria-hidden="true">*</i>
+        {label} {required && <i aria-hidden="true">*</i>}
       </span>
       {children}
       {hint && <small>{hint}</small>}

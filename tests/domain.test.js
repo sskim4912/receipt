@@ -19,6 +19,7 @@ export const core = {
   businessNumber: '123-45-67890',
   amount: '92000',
   approvalNumber: '0027236059',
+  approvalState: 'present',
 };
 export const extras = {
   ...EMPTY_EXTRAS,
@@ -50,8 +51,10 @@ test('실제 승인번호 없음과 확인불가를 구분, 관리팀 제출도 
     validateInput({ ...core, approvalNumber: '', approvalState: 'absent' }, extras).approvalNumber,
     null,
   );
-  assert.throws(() =>
-    validateInput({ ...core, approvalNumber: '', approvalState: 'unreadable' }, extras),
+  assert.equal(
+    validateInput({ ...core, approvalNumber: '', approvalState: 'unreadable' }, extras)
+      .approvalNumber,
+    null,
   );
   const r = validateInput({ ...EMPTY_CORE, approvalState: 'unreadable' }, extras, 'team');
   assert.equal(r.amount, null);

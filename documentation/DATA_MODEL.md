@@ -4,41 +4,41 @@
 
 ## receipts/{receiptId}
 
-| 필드                    | 형식 / 의미                                                       |
-| ----------------------- | ----------------------------------------------------------------- |
-| schemaVersion           | 정수 `2`                                                          |
-| receiptId               | 브라우저에서 생성한 UUID, 문서 ID와 동일                          |
-| employeeId              | 선택 사번 문자열, 미입력 시 빈 문자열. 로그인/인증 ID가 아님      |
-| employeeName            | 실제 사용자 이름, 필수                                            |
-| receiptDate             | 승인일자 `YYYY-MM-DD` 문자열. 관리팀 제출 미확인 시 null          |
-| receiptTime             | 승인시간 `HH:MM` 또는 빈 문자열                                   |
-| merchantName            | 업체명 문자열. 관리팀 제출 미확인 시 null                         |
-| businessNumber          | 사업자번호 `000-00-00000`, 영수증에 표시된 경우 저장              |
-| amount                  | 영수/결제/매출합계/승인금액 정수 원, 미확인 시 null               |
-| category                | 식비 / 교통비 / 숙박비 / 자재·소모품 / 기타                       |
-| approvalNumber          | 숫자로 구성된 **문자열**, 앞자리 0 보존. 없는 경우 null           |
-| approvalState           | `present` 있음 / `absent` 실제 없음 / `unreadable` 확인불가       |
-| paymentMethod           | 결제수단 문자열, 선택                                             |
-| supplyAmount, vatAmount | 0 이상 정수 원 또는 null, 선택                                    |
-| cardLast4               | 마지막 4자리만 저장, 선택. 전체 카드번호를 받지 않음              |
-| items                   | 품목/메뉴 문자열, 선택                                            |
-| attendeeCount           | 정수 1~99, 필수                                                   |
-| purpose                 | 구체적인 사용 목적, 필수                                          |
-| location                | 사용장소, 필수                                                    |
-| memo                    | 선택 메모                                                         |
-| registrationMethod      | `manual` 수기입력 / `team` 관리팀 제출                            |
-| status                  | `manual_review`, `team_review`, `pending`, `completed`            |
-| createdAt               | Firestore 서버 timestamp, 최초 등록 이후 유지                     |
-| updatedAt               | Firestore 서버 timestamp, 수정/상태 변경 시 갱신                  |
-| version                 | 최초 1, 수정/상태 변경마다 +1. 오래된 화면에서 덮어쓰기·삭제 방지 |
-| duplicateKey            | 날짜·금액·승인번호 SHA-256. 실제 없음/확인불가는 null             |
-| requestFingerprint      | 검증된 최초 입력값 SHA-256. 같은 등록 요청 재시도 확인            |
-| suspectedDuplicate      | 실제 승인번호 없는 경우 비슷한 최근 등록 여부                     |
-| analysisAttempts        | 0~3 OCR 실패 횟수. 취소는 실패로 세지 않음                        |
-| recognitionEngine       | `tesseract-browser` 또는 미사용 시 `none`                         |
-| imageStored             | 항상 `false`                                                      |
+| 필드                    | 형식 / 의미                                                        |
+| ----------------------- | ------------------------------------------------------------------ |
+| schemaVersion           | 정수 `2`                                                           |
+| receiptId               | 브라우저에서 생성한 UUID, 문서 ID와 동일                           |
+| employeeId              | 선택 사번 문자열, 미입력 시 빈 문자열. 로그인/인증 ID가 아님       |
+| employeeName            | 실제 사용자 이름, 필수                                             |
+| receiptDate             | 승인일자 `YYYY-MM-DD` 문자열. 관리팀 제출 미확인 시 null           |
+| receiptTime             | 승인시간 `HH:MM` 또는 빈 문자열                                    |
+| merchantName            | 업체명 문자열. 관리팀 제출 미확인 시 null                          |
+| businessNumber          | 사업자번호 `000-00-00000`, 영수증에 표시된 경우 저장               |
+| amount                  | 영수/결제/매출합계/승인금액 정수 원, 미확인 시 null                |
+| category                | 식비 / 교통비 / 숙박비 / 자재·소모품 / 기타                        |
+| approvalNumber          | 숫자로 구성된 **문자열**, 앞자리 0 보존. 없는 경우 null            |
+| approvalState           | `present` 있음 / `absent` 실제 없음 / `unreadable` 미입력·확인불가 |
+| paymentMethod           | 결제수단 문자열, 선택                                              |
+| supplyAmount, vatAmount | 0 이상 정수 원 또는 null, 선택                                     |
+| cardLast4               | 마지막 4자리만 저장, 선택. 전체 카드번호를 받지 않음               |
+| items                   | 품목/메뉴 문자열, 선택                                             |
+| attendeeCount           | 정수 1~99, 필수                                                    |
+| purpose                 | 구체적인 사용 목적, 필수                                           |
+| location                | 사용장소, 필수                                                     |
+| memo                    | 선택 메모                                                          |
+| registrationMethod      | `manual` 수기입력 / `team` 관리팀 제출                             |
+| status                  | `manual_review`, `team_review`, `pending`, `completed`             |
+| createdAt               | Firestore 서버 timestamp, 최초 등록 이후 유지                      |
+| updatedAt               | Firestore 서버 timestamp, 수정/상태 변경 시 갱신                   |
+| version                 | 최초 1, 수정/상태 변경마다 +1. 오래된 화면에서 덮어쓰기·삭제 방지  |
+| duplicateKey            | 날짜·금액·승인번호 SHA-256. 실제 없음/확인불가는 null              |
+| requestFingerprint      | 검증된 최초 입력값 SHA-256. 같은 등록 요청 재시도 확인             |
+| suspectedDuplicate      | 실제 승인번호 없는 경우 비슷한 최근 등록 여부                      |
+| analysisAttempts        | 0~3 OCR 실패 횟수. 취소는 실패로 세지 않음                         |
+| recognitionEngine       | `tesseract-browser` 또는 미사용 시 `none`                          |
+| imageStored             | 항상 `false`                                                       |
 
-주소는 영수증마다 표기와 OCR 품질 차이가 커서 추출·저장하지 않습니다. 직접 입력 정상 등록은 업체명, 승인일자/시간, 영수금액을 확인해야 합니다. 사업자번호가 영수증에 표시되면 저장하며, 표시되지 않으면 비워둘 수 있습니다. 승인번호는 실제 영수증에 없는 경우에만 없음으로 표시할 수 있습니다. 관리팀 제출은 읽기 어려운 값을 비워 둔 채 요청할 수 있습니다.
+주소는 영수증마다 표기와 OCR 품질 차이가 커서 추출·저장하지 않습니다. 직접 입력 정상 등록은 업체명, 승인일자/시간, 영수금액을 확인해야 합니다. 사업자번호가 영수증에 표시되면 저장하며, 표시되지 않으면 비워둘 수 있습니다. 승인번호도 선택 항목이며, 값이 없거나 읽히지 않으면 비워둘 수 있습니다. 실제 영수증에 승인번호가 없는 것을 확인한 경우에는 `absent`로 구분합니다. 관리팀 제출은 읽기 어려운 값을 비워 둔 채 요청할 수 있습니다.
 
 상태 표시:
 

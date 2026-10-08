@@ -78,7 +78,7 @@ test('Receipt and approval amounts are parsed from a detailed card receipt', () 
   assert.equal(result.fields.amount, '92000');
   assert.equal(result.fields.receiptTime, '19:16');
 });
-test('Taxi fare without business or approval numbers is left for user confirmation', () => {
+test('Taxi fare is complete without business or approval numbers', () => {
   const result = parseReceiptText(`일반영수증
 가맹점: 개인택시[66091701989]
 거래 일시: 2026.09-02 08:33:08
@@ -90,7 +90,7 @@ test('Taxi fare without business or approval numbers is left for user confirmati
   assert.equal(result.fields.amount, '17200');
   assert.equal(result.fields.businessNumber, undefined);
   assert.equal(result.fields.approvalNumber, undefined);
-  assert.equal(result.complete, false);
+  assert.equal(result.complete, true);
 });
 test('Bracketed approval amount and card sales labels are extracted', () => {
   assert.equal(parseReceiptText('[승인금액] 1,179,000').fields.amount, '1179000');

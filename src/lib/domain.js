@@ -12,7 +12,7 @@ export const LABELS = {
   receiptTime: '승인시간',
   merchantName: '업체명',
   amount: '영수금액',
-  approvalNumber: '승인번호',
+  approvalNumber: '승인번호(선택)',
   category: '분류',
   paymentMethod: '결제수단',
   supplyAmount: '공급가액',
@@ -37,7 +37,7 @@ export const EMPTY_CORE = {
   merchantName: '',
   amount: '',
   approvalNumber: '',
-  approvalState: 'present',
+  approvalState: 'unreadable',
   category: '기타',
   paymentMethod: '',
   supplyAmount: '',
@@ -113,12 +113,6 @@ const sharedCore = {
   items: z.string().trim().max(1000),
 };
 const coreBase = z.object(sharedCore).superRefine((v, c) => {
-  if (v.approvalState === 'present' && !v.approvalNumber)
-    c.addIssue({
-      code: 'custom',
-      message: '승인번호를 입력하거나 실제 승인번호 없음을 선택해주세요.',
-      path: ['approvalNumber'],
-    });
   if (v.approvalState !== 'present' && v.approvalNumber)
     c.addIssue({
       code: 'custom',
@@ -136,12 +130,15 @@ export function validateInput(core, extras, mode = 'manual') {
     if (!base.merchantName) throw new Error('업체명을 입력해주세요.');
     if (base.amount === null || base.amount <= 0)
       throw new Error('영수금액은 1원 이상 입력해주세요.');
-    if (base.approvalState === 'unreadable')
-      throw new Error('승인번호를 입력하거나 실제 승인번호 없음을 선택해주세요.');
   }
   return {
     ...base,
     ...extra,
+    approvalState: base.approvalNumber
+      ? 'present'
+      : base.approvalState === 'absent'
+        ? 'absent'
+        : 'unreadable',
     merchantName: base.merchantName || null,
     approvalNumber: base.approvalNumber || null,
     registrationMethod: mode,
@@ -156,6 +153,7 @@ export function money(v) {
 export function display(r, key) {
   if (['amount', 'supplyAmount', 'vatAmount'].includes(key)) return money(r[key]);
   if (key === 'approvalNumber' && r.approvalState === 'absent') return '승인번호 없음';
+  if (key === 'approvalNumber' && r.approvalState === 'unreadable' && !r[key]) return '미확인';
   if (key === 'status') return STATUSES[r[key]] || r[key];
   if (key === 'registrationMethod') return METHODS[r[key]] || r[key];
   if (['createdAt', 'updatedAt'].includes(key))

@@ -28,7 +28,7 @@ export class ReceiptRepository {
       .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
   }
   async suspected(input, excludeId) {
-    if (input.approvalState !== 'absent' || !input.receiptDate || input.amount === null)
+    if (input.approvalState === 'present' || !input.receiptDate || input.amount === null)
       return false;
     const rows = await this.driver.list(this.receipts, {
       field: 'receiptDate',

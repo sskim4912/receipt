@@ -13,6 +13,7 @@ const core = {
   businessNumber: '123-45-67890',
   amount: '92000',
   approvalNumber: '0027236059',
+  approvalState: 'present',
 };
 const extras = {
   employeeId: 'A1',
@@ -52,11 +53,11 @@ test('다른 등록번호 중복과 동시 중복을 한 건으로 차단', asyn
   assert.equal(results.filter((r) => r.status === 'fulfilled').length, 1);
   assert.equal((await repo.list()).length, 1);
 });
-test('승인번호 없음은 반복 금액 등록 허용·중복 의심 표시', async () => {
+test('승인번호 없음 또는 미확인 상태는 반복 금액 등록 허용·중복 의심 표시', async () => {
   const { repo } = setup();
   const c = { ...core, approvalNumber: '', approvalState: 'absent' };
   await repo.create('one', c, extras);
-  const r = await repo.create('two', c, extras);
+  const r = await repo.create('two', { ...c, approvalState: 'unreadable' }, extras);
   assert.equal(r.suspectedDuplicate, true);
   assert.equal((await repo.list()).length, 2);
 });
