@@ -340,7 +340,6 @@ function App() {
     [core, setCore] = useState({ ...EMPTY_CORE }),
     [extras, setExtras] = useState({ ...EMPTY_EXTRAS }),
     [photo, setPhoto] = useState(null),
-    [mode, setMode] = useState('manual'),
     [saved, setSaved] = useState(null),
     [deleteDraft, setDeleteDraft] = useState(false);
   const camera = useRef(),
@@ -357,7 +356,6 @@ function App() {
     setPhoto(null);
     setCore({ ...EMPTY_CORE });
     setExtras({ ...EMPTY_EXTRAS });
-    setMode('manual');
     setError('');
     setSaved(null);
     requestId.current = crypto.randomUUID();
@@ -374,16 +372,10 @@ function App() {
     setScreen(next);
     setError('');
   }
-  function team() {
-    setMode('team');
-    setCore((v) => ({ ...v, approvalNumber: '', approvalState: 'unreadable' }));
-    setScreen('manual');
-    setError('');
-  }
   function confirm(e) {
     e.preventDefault();
     try {
-      validateInput(core, extras, mode);
+      validateInput(core, extras);
       setError('');
       setScreen('confirm');
     } catch (err) {
@@ -392,7 +384,7 @@ function App() {
   }
   let valid = false;
   try {
-    validateInput(core, extras, mode);
+    validateInput(core, extras);
     valid = true;
   } catch {}
   async function register(e) {
@@ -402,7 +394,7 @@ function App() {
     setBusy(true);
     setError('');
     try {
-      const receipt = await repo.create(requestId.current, core, extras, mode, 0, 'none');
+      const receipt = await repo.create(requestId.current, core, extras);
       if (!receipt)
         throw new Error('저장 결과를 확인할 수 없습니다. 입력내용을 유지한 채 다시 시도해주세요.');
       setSaved(receipt);
@@ -498,14 +490,11 @@ function App() {
                   }}
                   onError={setError}
                 />
-                <CoreFields value={core} onChange={setCore} simple team={mode === 'team'} />
+                <CoreFields value={core} onChange={setCore} simple />
                 <ExtraFields value={extras} onChange={setExtras} />
                 <ErrorBox message={error} />
                 <button className="button primary full" disabled={!valid || busy}>
                   입력내용 확인
-                </button>
-                <button type="button" className="button text full" onClick={team}>
-                  입력이 어려우면 관리팀에 제출
                 </button>
               </form>
             </section>
@@ -526,15 +515,7 @@ function App() {
                 core={{ ...core, amount: core.amount ? Number(core.amount) : null }}
                 extras={extras}
               />
-              {mode === 'team' ? (
-                <div className="notice warning">
-                  관리팀에 확인 요청 내역을 등록합니다.
-                  <br />
-                  영수증 원본을 관리팀에 별도로 전달해주세요.
-                </div>
-              ) : (
-                <div className="notice">정보가 맞으면 등록을 진행해주세요.</div>
-              )}
+              <div className="notice">정보가 맞으면 등록을 진행해주세요.</div>
               <form onSubmit={register}>
                 <ErrorBox message={error} />
                 <button className="button primary full" disabled={!valid || busy}>
@@ -568,9 +549,6 @@ function App() {
                 <div className="notice warning">
                   비슷한 영수증이 있어 관리팀이 중복 여부를 확인합니다.
                 </div>
-              )}
-              {mode === 'team' && (
-                <div className="notice warning">관리팀에 영수증 원본을 별도로 전달해주세요.</div>
               )}
               <button className="button primary" onClick={reset}>
                 새 영수증 등록
