@@ -4,7 +4,7 @@
 
 | 검사                          | 결과      | 범위                                                        |
 | ----------------------------- | --------- | ----------------------------------------------------------- |
-| 단위 테스트 `npm test`        | 34개 통과 | 입력·중복·오류 처리, Firestore 저장소, OCR 텍스트 파싱, CSV |
+| 단위 테스트 `npm test`        | 35개 통과 | 입력·중복·오류 처리, Firestore 저장소, OCR 텍스트 파싱, CSV |
 | 브라우저 `npm run test:e2e`   | 18개 통과 | mock Cloud Vision, 사진 미저장 Firestore, 관리자 및 모바일  |
 | 프로덕션 빌드 `npm run build` | 통과      | GitHub Pages 경로 `/receipt/`                               |
 

@@ -21,7 +21,7 @@ Firebase Firestore REST API만 연결합니다. Storage, Cloud Functions, Authen
 
 ## 직원 화면
 
-직원 화면은 촬영한 영수증을 브라우저에서 임시 미리보기로 보여주며, 키가 설정된 경우 Google Cloud Vision OCR을 한 번 호출해 업체명·영수금액·사용일자를 읽습니다. 이미지 데이터는 Vision API로 전송되지만 Firebase Storage나 Firestore에는 저장하지 않습니다. 못 읽은 값은 빈 채로 두고 직접 입력을 허용합니다. 영수증 원본은 사용자가 별도로 보관합니다.
+직원 화면은 촬영한 영수증을 브라우저에서 임시 미리보기로 보여주며, 키가 설정된 경우 Google Cloud Vision OCR을 한 번 호출해 업체명·총 승인 금액·사용일자와 주소 라벨이 명확한 장소를 읽습니다. 이미지 데이터는 Vision API로 전송되지만 Firebase Storage나 Firestore에는 저장하지 않습니다. 못 읽은 값은 빈 채로 두고 직접 입력을 허용합니다. 영수증 원본은 사용자가 별도로 보관합니다.
 
 ## Cloud Vision API 키 설정
 

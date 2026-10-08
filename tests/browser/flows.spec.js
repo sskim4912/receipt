@@ -77,7 +77,7 @@ test('사진을 Cloud Vision으로 OCR하고 필드에 채우되 Firebase에는 
         responses: [
           {
             fullTextAnnotation: {
-              text: '[매장명] 대산보쌈\n승인일시: 2026-10-08 19:16:34\n결제금액: 92,000원',
+              text: '[매장명] 대산보쌈\n[주소] 충청남도 서산시 대산읍 탑골길 19-14\n승인일시: 2026-10-08 19:16:34\n총 승인 금액: 92,000원',
             },
           },
         ],
@@ -93,6 +93,9 @@ test('사진을 Cloud Vision으로 OCR하고 필드에 채우되 Firebase에는 
   await expect(page.getByLabel('업체명', { exact: true })).toHaveValue('대산보쌈');
   await expect(page.getByLabel('영수금액', { exact: true })).toHaveValue('92000');
   await expect(page.getByLabel('사용일자', { exact: true })).toHaveValue('2026-10-08');
+  await expect(page.getByLabel('사용장소', { exact: true })).toHaveValue(
+    '충청남도 서산시 대산읍 탑골길 19-14',
+  );
   await expect(page.getByRole('status')).toContainText('빈 입력란에 넣었습니다');
   await expect(
     page.getByRole('img', { name: '브라우저에서 임시로 확인 중인 영수증' }),

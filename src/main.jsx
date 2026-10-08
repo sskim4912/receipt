@@ -98,7 +98,7 @@ function CoreFields({ value, onChange, team = false, simple = false }) {
               }
               maxLength={k === 'merchantName' ? 160 : k === 'approvalNumber' ? 40 : undefined}
               pattern={k === 'amount' ? '[0-9]+' : undefined}
-              placeholder={k === 'amount' ? '영수금액·결제금액·매출합계·승인금액' : undefined}
+              placeholder={k === 'amount' ? '총 승인 금액·영수금액·결제금액·매출합계' : undefined}
               onChange={(e) => {
                 const next = e.target.value;
                 if (k === 'approvalNumber')
@@ -395,10 +395,15 @@ function App() {
       });
       if (controller.signal.aborted) return;
       const extracted = Object.entries(recognized).filter(([, v]) => v);
+      const { location, ...coreValues } = recognized;
       setCore((current) => ({
         ...current,
-        ...Object.fromEntries(extracted.filter(([key]) => !current[key])),
+        ...Object.fromEntries(
+          Object.entries(coreValues).filter(([key, value]) => value && !current[key]),
+        ),
       }));
+      if (location)
+        setExtras((current) => ({ ...current, location: current.location || location }));
       setOcrMessage(
         extracted.length
           ? `인식된 ${extracted.length}개 항목을 빈 입력란에 넣었습니다. 원본과 대조해 확인해주세요.`

@@ -28,8 +28,29 @@ function labeledMerchant(text) {
   return '';
 }
 
+function labeledLocation(text) {
+  for (const line of text.split(/\r?\n/)) {
+    const match = line.match(
+      /(?:\[\s*)?(?:사업장\s*주소|가맹점\s*주소|주소|소재지|사용\s*장소|장소)(?:\s*\])?\s*[:：]?\s*(.+)$/,
+    );
+    if (!match) continue;
+    const value = match[1]
+      .replace(/\s{2,}.*$/, '')
+      .replace(/[|｜]+$/, '')
+      .trim();
+    const looksLikeAddress =
+      value.length >= 6 &&
+      /[가-힣]/.test(value) &&
+      /(?:특별시|광역시|특별자치도|도|시|군|구|읍|면|동|리|로|길)/.test(value);
+    if (looksLikeAddress) return value.slice(0, 160);
+  }
+  return '';
+}
+
 function labeledAmount(text) {
   const priorities = [
+    /총\s*승인\s*(?:금액|총액)/,
+    /승인\s*총\s*(?:금액|액)/,
     /승인\s*금액/,
     /영수\s*금액/,
     /결제\s*(?:총액|금액)/,
@@ -73,6 +94,7 @@ export function parseReceiptText(text) {
   return {
     merchantName: labeledMerchant(text),
     amount: labeledAmount(text),
+    location: labeledLocation(text),
     receiptDate:
       explicitDates.length === 1
         ? explicitDates[0]
