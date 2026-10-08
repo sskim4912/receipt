@@ -197,7 +197,7 @@ function CoreFields({ value, onChange, team = false, simple = false }) {
     </>
   );
 }
-function ExtraFields({ value, onChange }) {
+function ExtraFields({ value, onChange, includeMemo = false }) {
   const set = (k, v) => onChange({ ...value, [k]: v });
   return (
     <>
@@ -262,15 +262,17 @@ function ExtraFields({ value, onChange }) {
             onChange={(e) => set('employeeId', e.target.value)}
           />
         </label>
-        <label className="field">
-          <span>메모 (선택)</span>
-          <textarea
-            aria-label="메모"
-            value={value.memo}
-            maxLength={1000}
-            onChange={(e) => set('memo', e.target.value)}
-          />
-        </label>
+        {includeMemo && (
+          <label className="field">
+            <span>메모 (선택)</span>
+            <textarea
+              aria-label="메모"
+              value={value.memo}
+              maxLength={1000}
+              onChange={(e) => set('memo', e.target.value)}
+            />
+          </label>
+        )}
       </div>
     </>
   );
@@ -1135,6 +1137,7 @@ function Admin({ onBack }) {
               <ExtraFields
                 value={editing.extras}
                 onChange={(extras) => setEditing({ ...editing, extras })}
+                includeMemo
               />
               <ErrorBox message={error} />
               <div className="modal-actions">

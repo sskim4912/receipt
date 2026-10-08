@@ -79,6 +79,7 @@ test('사진 미리보기와 필수정보 직접 입력·사진 미전송 저장
   await expect(page.getByLabel('참석 인원수', { exact: true })).toBeVisible();
   await expect(page.getByLabel('구체적인 사용 목적', { exact: true })).toBeVisible();
   await expect(page.getByLabel('사용장소', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('메모', { exact: true })).toHaveCount(0);
   const outgoing = [];
   page.on('request', (request) => outgoing.push(request.url()));
   await core(page);

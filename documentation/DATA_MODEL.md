@@ -25,7 +25,7 @@
 | attendeeCount           | 정수 1~99, 필수                                                    |
 | purpose                 | 구체적인 사용 목적, 필수                                           |
 | location                | 사용장소, 필수                                                     |
-| memo                    | 선택 메모                                                          |
+| memo                    | 선택 메모. 과거 문서 호환 및 관리자 수정용                         |
 | registrationMethod      | `manual` 수기입력 / `team` 관리팀 제출                             |
 | status                  | `manual_review`, `team_review`, `pending`, `completed`             |
 | createdAt               | Firestore 서버 timestamp, 최초 등록 이후 유지                      |
