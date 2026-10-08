@@ -72,9 +72,13 @@ export function parseReceiptText(text = '') {
     const unique = [...new Set(candidates)];
     return unique.length === 1 ? String(unique[0]) : '';
   };
-  const total = labelled(
-    /^(?:총결제금액|결제총액|실결제금액|총승인금액|총합계금액|합계금액|결제금액|결제합계|승인금액|매출합계|주문합계|영수금액|판매합계|받을금액|총금액|합계|총액|TOTAL(?:AMOUNT)?)/i,
+  const paidAmount = labelled(
+    /^(?:총결제금액|결제총액|실결제금액|총승인금액|결제금액|결제합계|승인금액|영수금액|받은금액|받을금액)/i,
   );
+  const salesTotal = labelled(
+    /^(?:매출합계|주문합계|주문총액|판매합계|총합계금액|합계금액|총금액|합계|총액|TOTAL(?:AMOUNT)?)/i,
+  );
+  const total = paidAmount || salesTotal;
   if (total) fields.amount = total;
   const supply = labelled(/^(?:공급가액|공급가|과세금액)/);
   const vat = labelled(/^(?:부가세|부가가치세|VAT)/i);

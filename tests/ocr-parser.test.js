@@ -59,6 +59,25 @@ test('Korean afternoon receipt time and 결제총액 label', () => {
   assert.equal(result.fields.receiptTime, '19:04');
   assert.equal(result.fields.amount, '70000');
 });
+test('Paid amount takes priority over a different pre-discount 합계', () => {
+  const result = parseReceiptText(`커피베이, 서산명지점
+사업자번호 452-51-00315
+2026-10-02 11:56
+합계 34,800
+받을금액 32,320
+받은금액 32,320`);
+  assert.equal(result.fields.amount, '32320');
+});
+test('Receipt and approval amounts are parsed from a detailed card receipt', () => {
+  const result = parseReceiptText(`대산보쌈
+사업자등록번호 252-02-03484
+승인번호 27236059
+승인일시 2026-10-06 19:16:34
+결제금액 92,000`);
+  assert.equal(result.complete, true);
+  assert.equal(result.fields.amount, '92000');
+  assert.equal(result.fields.receiptTime, '19:16');
+});
 test('Unknown approval is never assumed absent; random large numbers and VAT are not total', () => {
   const result = parseReceiptText(
     '영수증\n전화 010-1234-5678\n사업자 123-45-67890\n부가세 1000\n카드 1234567890',
@@ -69,9 +88,9 @@ test('Unknown approval is never assumed absent; random large numbers and VAT are
   assert.equal(result.fields.approvalNumber, undefined);
   assert.equal(result.fields.merchantName, undefined);
 });
-test('Conflicting dates and totals are left blank for review', () => {
+test('Conflicting dates and equally prioritized payment totals are left blank', () => {
   const result = parseReceiptText(
-    '상호: 식당\n2026-10-08\n2026-10-09\n합계 12,000\n결제금액 13,000',
+    '상호: 식당\n2026-10-08\n2026-10-09\n결제금액 12,000\n승인금액 13,000',
   );
   assert.equal(result.fields.receiptDate, undefined);
   assert.equal(result.fields.amount, undefined);
