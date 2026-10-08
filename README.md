@@ -1,1 +1,78 @@
+# GS건설 Aurora Project 영수증 관리
 
+**사용 주소: https://sskim4912.github.io/receipt/**
+
+GitHub Pages와 Firebase Firestore만 사용하는 Spark 테스트용 웹앱입니다. PC·모바일 브라우저에서 별도 프로그램 설치 없이 실행합니다. Firebase Storage, Cloud Functions, Firebase Authentication, OpenAI 및 별도 앱 서버를 사용하지 않으며 Blaze 전환을 요구하지 않습니다.
+
+## 직원 사용 방법
+
+1. **영수증 촬영 / 사진에서 선택**으로 사진을 현재 브라우저에서 확인합니다. 사진 없이 **직접 입력**으로 시작할 수도 있습니다.
+2. 사용일자·사용처·금액·승인번호를 입력합니다. 실제로 승인번호가 없는 영수증만 ‘승인번호 자체가 없습니다’를 선택하세요. 확실하지 않은 값은 추정하지 마세요.
+3. 직접 입력한 내용을 확인한 뒤 실제 사용자, 참석인원 1~99, 구체적인 사용 목적, 사용장소를 입력하고 등록합니다. 사번·메모와 추가 영수증 정보는 선택사항입니다.
+4. 등록번호를 확인하고 **처리상태 조회**에서 사용자 이름·선택 사번 또는 등록번호로 상태를 조회합니다.
+
+이번 단계에는 자동 인식 엔진이 없습니다. 사진 확인을 다시 시도할 수 있고, 3회 확인 후 관리팀 제출 선택지를 표시합니다. **실제 AI 인식 성공/실패를 가장하지 않습니다.** 직접 입력은 처음부터 제공하며 입력이 어려운 경우에도 관리팀 확인 요청을 등록할 수 있습니다.
+
+관리팀 제출에도 직원 필수정보 4개는 필요합니다. **사진은 관리팀에 전송되지 않으므로 영수증 원본 또는 사진을 별도로 전달해야 합니다.**
+
+## 관리자 사용 방법과 중요한 제한
+
+상단 **관리자 접속**에서 공용 비밀번호 하나로 화면을 엽니다. 첫 접속 시 12~128자 비밀번호와 확인을 입력해 설정합니다. 기본 비밀번호는 없으며 비밀번호 평문을 소스나 Firestore에 저장하지 않습니다. 설정된 비밀번호로 다른 기기에서도 화면을 열 수 있습니다.
+
+**이 비밀번호는 테스트용 화면 잠금입니다. 서버 인증이나 데이터 접근 권한 검사가 아닙니다.** 현재 `allow read, write: if true` 규칙에서는 누구나 Firestore REST API로 데이터를 읽고 변경할 수 있고 화면 잠금 설정도 변경할 수 있습니다. 사용자 지시대로 Firebase Authentication과 서버를 쓰지 않으므로 기존 요구사항의 ‘서버에서 관리자 비밀번호 검증’은 이번 구성에서 충족할 수 없습니다. 실제 개인정보·증빙을 넣기 전에 서버 인증 또는 인증 기반 보안 규칙을 별도 도입해야 합니다.
+
+관리자 화면은 다음을 제공합니다.
+
+- 전체 내역 조회·새로고침, 기간·사용자·사용처·상태 필터.
+- 같은 화면에서 펼치는 상세내역과 전체 입력정보 확인.
+- 등록정보 수정, 버전 충돌 검사, 중복 재검사.
+- 수기입력·관리팀 확인필요 → 내용 확인 후 미처리 → 확인창 후 처리완료, 완료 → 미처리 되돌리기.
+- 관리팀 제출의 미확인 핵심정보는 수정한 뒤 상태를 변경해야 합니다.
+- **삭제 내용 확인창 + 확인 체크박스**를 통과한 뒤 해당 내역 삭제. 삭제는 복구할 수 없습니다.
+- 현재 적용한 검색·필터 결과만 UTF-8 BOM CSV 다운로드.
+
+사진은 저장하지 않기 때문에 등록 후 원본 조회·첨부 썸네일·사진 다운로드는 제공하지 않습니다. 현재 브라우저의 임시 사진만 입력 중 확대할 수 있습니다.
+
+## 저장·오류 방지
+
+- 사진은 Blob URL로만 표시하고 화면 종료·새 사진 선택·등록 완료 시 해제합니다. 서버로 업로드하지 않고 Firestore/IndexedDB/localStorage에도 보관하지 않습니다.
+- 사진은 브라우저가 해독할 수 있는 10MB 이하 이미지입니다. 해독하지 못하는 HEIC는 JPG/PNG/WebP 등으로 다시 선택하도록 안내합니다.
+- 승인번호는 문자열로 저장해 앞자리 0을 보존합니다. 금액은 정수 원 단위입니다.
+- 일자·금액·승인번호로 만든 중복키 문서를 등록 데이터와 한 번의 **원자적 Firestore commit**으로 저장합니다. 생성 조건과 문서 `updateTime` 조건으로 동시 요청을 검사합니다.
+- Spark 익명 REST 접근에서는 `beginTransaction`이 거부되어, 낙관적 버전 조건 + 원자적 commit을 사용합니다. 앱을 통해 수행하는 등록·수정·삭제를 보호하며, 공개 규칙을 우회해 직접 API를 조작하는 사용자를 막는 보안 장치는 아닙니다.
+- 동일 등록 요청의 응답이 유실되어도 같은 등록번호로 재시도하여 중복 저장하지 않습니다. 등록 중 버튼과 내부 요청 잠금을 사용합니다.
+- 승인번호 실제 없음은 동일 일자·금액만으로 차단하지 않습니다. 24시간 내 동일 업체·일자·금액은 중복 의심 표시만 합니다. 이 의심 표시는 동시 저장 때 완벽한 탐지를 보장하지 않습니다.
+- Firestore 오류·오프라인·한도 초과 시 성공을 표시하지 않고 입력내용을 유지합니다.
+
+## Firestore 데이터 구조
+
+`receipts/{receiptId}`에 다음을 저장합니다. 상세 설명은 [데이터 구조](documentation/DATA_MODEL.md)를 참조하세요.
+
+| 그룹          | 필드                                                                                                                                      |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| 식별·사용자   | `receiptId`, `employeeId`, `employeeName`                                                                                                 |
+| 영수증        | `receiptDate`, `receiptTime`, `merchantName`, `amount`, `category`, `approvalNumber`, `approvalState`                                     |
+| 선택 상세정보 | `paymentMethod`, `supplyAmount`, `vatAmount`, `businessNumber`, `cardLast4`, `items`                                                      |
+| 직원 필수정보 | `attendeeCount`, `purpose`, `location` (`employeeName` 포함 4개 필수)                                                                     |
+| 관리          | `memo`, `registrationMethod`, `status`, `createdAt`, `updatedAt`, `version`                                                               |
+| 검증          | `schemaVersion`, `duplicateKey`, `requestFingerprint`, `suspectedDuplicate`, `analysisAttempts`, `recognitionEngine`, `imageStored:false` |
+
+`receiptDuplicates/{sha256}`는 중복키 예약을 저장하고, `appSettings/adminGate`는 테스트 화면 잠금의 salt·PBKDF2 해시·반복 횟수만 보관합니다. 이미지 바이트, Base64, 이미지 경로/URL, 원본 파일은 저장하지 않습니다.
+
+## 개발·배포
+
+개발자만 Node.js 24.19+와 npm이 필요합니다. 사용하는 직원·관리자는 웹브라우저만 있으면 됩니다.
+
+```bash
+npm ci --cache /workspace/.npm-cache
+npm run dev
+npm test
+npm run build
+npm run test:e2e
+```
+
+개발 주소 경로는 `/receipt/`, 기본 포트는 3000입니다. `src/firebase-config.js`는 사용자가 제공한 Firebase 웹 프로젝트 메타데이터이며 비밀키가 아닙니다. Firestore REST API에만 사용합니다. API 키를 관리자 인증 수단으로 사용하지 않습니다.
+
+`npm run build`는 GitHub Pages용 파일을 `docs/`에 생성합니다. `docs/`는 **빌드 출력 전용**이므로 직접 편집하지 마세요. 소스를 바꾸면 다시 빌드하여 `main`에 함께 반영합니다. GitHub Pages의 배포 원본은 `main` 브랜치의 `/docs`이며 `.nojekyll`로 정적 파일을 그대로 제공합니다. 추가 서버·GitHub Actions 설정이 필요 없습니다.
+
+테스트 결과는 [검증 현황](documentation/VALIDATION.md), 배포 및 OpenAI 추가 시 필요한 작업은 [배포 안내](documentation/DEPLOYMENT.md)에 정리했습니다.
