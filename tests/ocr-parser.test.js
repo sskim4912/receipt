@@ -49,6 +49,18 @@ test('Bracketed Korean store fields and explicit approval date/time take priorit
   assert.equal(result.fields.amount, '104000');
   assert.equal(result.fields.approvalNumber, '32090166');
 });
+test('Merchant name after the business number is captured from Korean receipt headers', () => {
+  const result = parseReceiptText(`롯데지알에스(주) 대산점
+839-17-00236
+거래일: 2026/09/28 17:57:13
+받은돈 11,500
+승인번호: 18313336`);
+  assert.equal(result.fields.merchantName, '롯데지알에스(주) 대산점');
+  assert.equal(result.fields.receiptDate, '2026-09-28');
+  assert.equal(result.fields.receiptTime, '17:57');
+  assert.equal(result.fields.amount, '11500');
+  assert.equal(result.fields.approvalNumber, '18313336');
+});
 test('Korean afternoon receipt time and 결제총액 label', () => {
   const result = parseReceiptText(`대산농협주유소
 사업자번호: 316-82-05643

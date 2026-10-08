@@ -1,25 +1,20 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 100" role="img" aria-labelledby="title">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 380 150" role="img" aria-labelledby="title">
   <title id="title">GS건설</title>
   <defs>
-    <linearGradient id="orange" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#f7bf28" />
-      <stop offset="1" stop-color="#f26735" />
+    <linearGradient id="warm" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f6b72e"/><stop offset="1" stop-color="#f16a38"/>
     </linearGradient>
-    <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#3869a5" />
-      <stop offset="1" stop-color="#0d78a8" />
+    <linearGradient id="cool" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3975ad"/><stop offset="1" stop-color="#37a9c2"/>
     </linearGradient>
-    <linearGradient id="green" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#a5c83a" />
-      <stop offset="1" stop-color="#00a482" />
+    <linearGradient id="leaf" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#adc83a"/><stop offset="1" stop-color="#00a889"/>
     </linearGradient>
   </defs>
-  <g fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="9">
-    <path d="M12 42C18 15 45 4 68 16c12 6 20 12 29 2" stroke="url(#orange)" />
-    <path d="M12 43c-3 16 6 27 18 27 13 0 23-11 33-18 11-8 21-12 34-7" stroke="url(#blue)" />
-    <path d="M13 48c0 24 16 42 39 42 23 0 42-15 45-37" stroke="url(#green)" />
-    <path d="M24 50c7 12 17 19 29 17 12-2 21-13 31-20 5-4 10-6 15-5" stroke="#00a897" />
-  </g>
-  <text x="108" y="73" fill="#2868a6" font-family="Arial, sans-serif" font-size="67" font-weight="750" letter-spacing="-4">GS</text>
-  <text x="198" y="70" fill="#929292" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="43" font-weight="700" letter-spacing="-2">건설</text>
+  <!-- GS Construction's three-color circular wave emblem -->
+  <path fill="url(#warm)" d="M106 18c-12 4-18-3-31-9C50-5 23 5 11 28 3 43 2 59 8 72c-1-19 7-36 21-47C45 12 62 14 78 22c14 7 26 14 37 9 6-3 9-9 10-17-5 5-11 7-19 4Z"/>
+  <path fill="url(#cool)" d="M8 68c8 15 22 20 36 12l27-17c16-10 31-13 47-7-4 17-15 28-31 33-20 6-39-2-54 5-9 4-16 12-20 22C2 103 0 86 8 68Z"/>
+  <path fill="url(#leaf)" d="M13 103c10-17 24-23 42-19 18 4 34 3 49-8 9-7 14-17 16-30 13 27 4 59-20 75-23 15-57 13-77-5-7-6-11-12-10-13Z"/>
+  <text x="143" y="105" fill="#2868a6" font-family="Arial, sans-serif" font-size="77" font-weight="700" letter-spacing="-5">GS</text>
+  <text x="251" y="101" fill="#929292" font-family="Arial, 'Noto Sans KR', sans-serif" font-size="49" font-weight="700" letter-spacing="-3">건설</text>
 </svg>

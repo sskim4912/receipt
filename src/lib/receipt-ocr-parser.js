@@ -111,13 +111,21 @@ export function parseReceiptText(text = '') {
   });
   if (new Set(businessNumbers).size === 1) fields.businessNumber = businessNumbers[0];
   const businessMerchant = lines
-    .map((line) => line.match(/^(.{2,80}?)(?:\s*)(\d{3}\s*-\s*\d{2}\s*-\s*\d{5})/))
-    .find(
-      (match) =>
-        match &&
-        /[가-힣A-Za-z]/.test(match[1]) &&
-        !/(사업자|등록번호|TEL|전화|주소|대표|번호)/i.test(match[1]),
-    );
+    .map((line) => {
+      const match = line.match(/(\d{3}\s*-\s*\d{2}\s*-\s*\d{5})/);
+      if (!match) return null;
+      const before = line.slice(0, match.index).trim();
+      const after = line.slice(match.index + match[0].length).trim();
+      const clean = (value) => value.replace(/^[*#=:[\]·\s]+|[*#=:[\]·\s]+$/g, '').trim();
+      const candidates = [clean(before), clean(after)].filter(
+        (value) =>
+          value.length >= 2 &&
+          /[가-힣A-Za-z]/.test(value) &&
+          !/(사업자|등록번호|TEL|전화|주소|대표|번호)/i.test(value),
+      );
+      return candidates[0] || null;
+    })
+    .find(Boolean);
   const explicitMerchant = lines
     .map((line) =>
       line.match(
@@ -126,9 +134,8 @@ export function parseReceiptText(text = '') {
     )
     .find(Boolean);
   if (explicitMerchant) fields.merchantName = explicitMerchant[1].trim().slice(0, 160);
-  else if (businessMerchant) {
-    fields.merchantName = businessMerchant[1].replace(/^[*#=\s]+|[*#=\s]+$/g, '').slice(0, 160);
-  } else {
+  else if (businessMerchant) fields.merchantName = businessMerchant.slice(0, 160);
+  else {
     const heading = lines
       .slice(0, 5)
       .find(

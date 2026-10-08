@@ -27,13 +27,35 @@ self.onmessage = async ({ data: { image, base } }) => {
           message: '인식 엔진을 실행하지 못했습니다. 연결 상태를 확인하거나 직접 입력해주세요.',
         }),
     });
-    await worker.setParameters({
-      tessedit_pageseg_mode: PSM.SPARSE_TEXT,
-      preserve_interword_spaces: '1',
+    const candidates = [];
+    // Thermal receipts vary widely in layout. Run two local segmentation
+    // strategies against the same preprocessed pixels, then choose the
+    // strongest field results. Nothing is sent to a remote OCR service.
+    for (const [index, mode] of [PSM.AUTO, PSM.SPARSE_TEXT].entries()) {
+      await worker.setParameters({
+        tessedit_pageseg_mode: mode,
+        preserve_interword_spaces: '1',
+      });
+      const { data } = await worker.recognize(new Uint8Array(image));
+      candidates.push({ parsed: parseReceiptText(data.text), confidence: data.confidence || 0 });
+      self.postMessage({ type: 'progress', message: `영수증 글자 읽는 중 ${index + 1}/2` });
+    }
+    const best = [...candidates].sort(
+      (a, b) =>
+        Object.keys(b.parsed.fields).length * 12 +
+        b.confidence -
+        (Object.keys(a.parsed.fields).length * 12 + a.confidence),
+    )[0];
+    const fields = { ...best.parsed.fields };
+    self.postMessage({
+      type: 'result',
+      result: {
+        fields,
+        complete: ['receiptDate', 'receiptTime', 'merchantName', 'amount'].every(
+          (key) => fields[key],
+        ),
+      },
     });
-    const { data } = await worker.recognize(new Uint8Array(image));
-    // Only recognized fields leave this worker. Raw text stays in memory.
-    self.postMessage({ type: 'result', result: parseReceiptText(data.text) });
   } catch {
     self.postMessage({
       type: 'error',
