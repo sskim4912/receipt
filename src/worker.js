@@ -100,6 +100,13 @@ function normalizeAmount(value) {
   return Number.isSafeInteger(amount) && amount > 0 ? String(amount) : '';
 }
 
+function normalizeDate(value) {
+  const date = safeText(value, 10);
+  if (!/^20\d{2}-\d{2}-\d{2}$/.test(date)) return '';
+  const parsed = new Date(`${date}T00:00:00Z`);
+  return Number.isNaN(parsed.valueOf()) || parsed.toISOString().slice(0, 10) !== date ? '' : date;
+}
+
 function safeText(value, max = 160) {
   return typeof value === 'string' ? value.trim().slice(0, max) : '';
 }
@@ -210,7 +217,7 @@ async function processReceipt(request, env) {
     return json({
       merchantName: safeText(aiValues.merchantName) || fallback.merchantName,
       amount: normalizeAmount(aiValues.amount) || fallback.amount,
-      receiptDate: safeText(aiValues.receiptDate, 10) || fallback.receiptDate,
+      receiptDate: normalizeDate(aiValues.receiptDate) || fallback.receiptDate,
       receiptTime: safeText(aiValues.receiptTime, 8),
       location: safeText(aiValues.location) || fallback.location,
     });
