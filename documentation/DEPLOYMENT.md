@@ -47,6 +47,6 @@ Node.js·npm은 개발/빌드 시에만 필요합니다. 사용하는 PC·휴대
 
 ## 브라우저 OCR 배포
 
-`npm run build`는 먼저 `scripts/prepare-ocr.mjs`로 lockfile에 고정된 Tesseract Worker, LSTM WebAssembly 코어 3종, 한국어·영어 언어 파일과 라이선스를 `public/ocr/`에 준비합니다. Vite는 이를 배포용 `docs/ocr/`로 복사합니다. `public/ocr/`는 재생성하므로 Git에서 제외하고 **완성된 `docs/` 전체는 main에 포함**합니다. 런타임 CDN·외부 OCR 서버·API 키가 필요하지 않습니다. Worker가 읽는 사진·처리한 픽셀·전체 OCR 텍스트는 임시 메모리에만 존재하며, Firestore에는 사용자가 확인한 입력정보와 인식 엔진/실패 횟수만 저장합니다.
+`npm run build`는 먼저 `scripts/prepare-ocr.mjs`로 lockfile에 고정된 Tesseract Worker, LSTM WebAssembly 코어 3종, 한국어·영어 언어 파일과 라이선스를 `public/ocr/`에 준비합니다. Vite는 이를 배포용 `docs/ocr/`로 복사합니다. `public/ocr/`는 재생성하므로 Git에서 제외하고 **완성된 `docs/` 전체는 main에 포함**합니다. 런타임 CDN·외부 OCR 서버·API 키가 필요하지 않습니다. Worker가 읽는 사진·처리한 픽셀·전체 OCR 텍스트는 임시 메모리에만 존재하며, Firestore에는 사용자가 확인한 입력정보와 인식 엔진/실패 횟수만 저장합니다. 현재 사진에서 확인된 `매출합계(카드)`, `주문합계`, 사업자등록번호와 같은 줄에 인쇄된 상호, `인번호` OCR 오인식을 추가 처리합니다.
 
 첫 사용 약 8~9MB 다운로드 후 브라우저 HTTP 캐시를 이용할 수 있습니다. OCR 라이브러리의 IndexedDB 캐시는 비활성화했습니다. 120초 제한·취소·엔진 다운로드 오류에서 Worker를 종료하고 직접 입력을 제공합니다. 배포가 끝나면 새로고침 후 촬영 버튼 → 인식 진행 → 원본 대조 → 추가정보 → 등록을 확인하세요.
