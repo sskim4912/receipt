@@ -800,10 +800,16 @@ footer span {
   align-items: end;
 }
 .filter-grid .field {
+  width: 100%;
+  min-width: 0;
   margin: 0;
 }
 .filter-grid input,
 .filter-grid select {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   height: 43px;
   font-size: 12px;
 }
@@ -1159,22 +1165,26 @@ footer span {
     padding: 27px 14px;
   }
   .admin-title {
+    flex-direction: column;
     align-items: flex-start;
     gap: 10px;
     margin-bottom: 23px;
+  }
+  .admin-title > div {
+    width: 100%;
   }
   .admin-title h1 {
     font-size: 26px;
   }
   .admin-title p {
     font-size: 11px;
-    max-width: 220px;
+    max-width: none;
   }
   .admin-title > .button {
     padding: 8px 10px;
     font-size: 10px;
     min-height: 35px;
-    margin-top: 20px;
+    margin-top: 0;
     white-space: nowrap;
   }
   .stats {
@@ -1199,7 +1209,7 @@ footer span {
     padding: 16px;
   }
   .filter-grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
   }
   .filter-grid .field > span {
@@ -1226,9 +1236,12 @@ footer span {
     padding: 7px 9px;
   }
   .table-row {
-    grid-template-columns: minmax(0, 1fr) 26px 102px;
+    grid-template-columns: minmax(0, 1fr) auto;
     gap: 8px;
     padding: 15px 12px;
+  }
+  .no-image {
+    display: none;
   }
   .row-open {
     font-size: 11px;

@@ -132,6 +132,12 @@ test('정상 직접 입력·잘못된 인원 차단·조회·기간/사용자 �
   await page.getByLabel('시작일').fill('2026-10-01');
   await page.getByLabel('종료일').fill('2026-10-31');
   await page.getByLabel('사용자 검색').fill('김성석');
+  const filterWidths = await Promise.all(
+    ['시작일', '종료일', '사용자 검색', '사용처 검색'].map((label) =>
+      page.getByLabel(label).evaluate((element) => element.getBoundingClientRect().width),
+    ),
+  );
+  expect(Math.max(...filterWidths) - Math.min(...filterWidths)).toBeLessThanOrEqual(1);
   await page.getByRole('button', { name: '검색', exact: true }).click();
   await openRow(page);
   await page.getByRole('button', { name: '수정', exact: true }).click();
