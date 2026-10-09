@@ -346,7 +346,7 @@ function PhotoCapture({ photo, camera, onChange, onError, ocrMessage }) {
         onClick={() => camera.current?.click()}
       >
         <Icon name="camera" size={19} />
-        {photo ? '다시 촬영' : '영수증 사진 촬영'}
+        {photo ? '다시 촬영' : '영수증 사진 촬영 버튼'}
       </button>
       {ocrMessage && (
         <p className="ocr-status" role="status">
