@@ -1412,6 +1412,267 @@ footer {
     height: 21px;
   }
 }
+
+/* Refined employee-facing receipt flow */
+:root {
+  --blue: #145da6;
+  --deep: #123d6a;
+  --border: #dce6f0;
+  --muted: #687d93;
+}
+body {
+  background: #f3f6fa;
+  color: #192f49;
+  letter-spacing: -0.012em;
+}
+.site-header {
+  height: 78px;
+  box-shadow: 0 2px 12px #163b5d0a;
+}
+.header-actions {
+  gap: 0;
+}
+.admin-link,
+.my-receipts-link {
+  color: #203c59;
+  font-weight: 750;
+  border-radius: 9px;
+}
+.admin-link:hover:not(:disabled),
+.my-receipts-link:hover:not(:disabled) {
+  background: #f0f5fa;
+}
+.project-banner {
+  background: linear-gradient(110deg, #e8f2fb, #f2f7fc);
+  color: #194a77;
+  border-bottom-color: #e1eaf3;
+  padding: 15px 16px;
+}
+.project-banner strong {
+  font-size: 17px;
+  font-weight: 750;
+  letter-spacing: -0.04em;
+}
+.project-banner span {
+  color: #6d8195;
+  font-size: 12px;
+}
+.registration {
+  max-width: 760px;
+  padding-top: 24px;
+}
+.process-title {
+  margin-top: 4px;
+  color: #345d84;
+  font-size: 14px;
+  font-weight: 750;
+}
+.steps {
+  max-width: 680px;
+  margin: 12px auto 22px;
+  padding: 13px 14px;
+  background: #fff;
+  border: 1px solid #e2eaf2;
+  border-radius: 16px;
+  box-shadow: 0 4px 14px #173b5b08;
+}
+.steps li:not(:last-child)::after {
+  background: #d5e0ea;
+}
+.steps .active > span {
+  box-shadow: 0 0 0 4px #e8f1fa;
+}
+.card {
+  border-color: #e1e8f0;
+  border-radius: 20px;
+  box-shadow: 0 8px 28px #173b5b0a;
+}
+.section-heading {
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding: 1px 0 16px;
+  border-bottom: 1px solid #edf1f5;
+}
+.section-number {
+  display: grid;
+  place-items: center;
+  flex: 0 0 31px;
+  width: 31px;
+  height: 31px;
+  padding: 0;
+  border-radius: 50%;
+  background: #eaf2fa;
+  color: #145da6;
+  font-size: 14px;
+  letter-spacing: 0;
+}
+.section-heading h2 {
+  color: #1d3550;
+  font-size: 20px;
+  font-weight: 750;
+  letter-spacing: -0.045em;
+  line-height: 1.45;
+}
+.section-heading p {
+  color: #718399;
+  font-size: 13px;
+  line-height: 1.65;
+}
+.section-heading-required {
+  margin-top: 10px;
+  padding-bottom: 12px;
+}
+.photo-panel {
+  padding: 12px;
+  background: #f7f9fc;
+  border-color: #e5ebf2;
+  border-radius: 15px;
+}
+.photo-panel .receipt-photo {
+  border-radius: 9px;
+}
+.photo-capture-button {
+  min-height: 54px;
+  border: 1px solid #145da6;
+  border-radius: 12px;
+  background: #145da6;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 750;
+  box-shadow: 0 4px 10px #145da622;
+}
+.photo-capture-button:hover:not(:disabled) {
+  background: #0f4f91;
+}
+.photo-capture-button svg {
+  flex: none;
+}
+.field {
+  gap: 7px;
+  margin-bottom: 16px;
+}
+.field > span {
+  color: #344f6a;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.field input,
+.field select,
+.field textarea,
+.registration .field input[type='date'] {
+  border-color: #d8e2ed;
+  border-radius: 10px;
+  color: #203a55;
+  background: #fff;
+}
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  border-color: #73a5d3;
+  box-shadow: 0 0 0 3px #eaf3fb;
+}
+.field i.required-mark.danger {
+  color: #b42332;
+  background: transparent;
+  padding: 0;
+}
+.button {
+  border-radius: 11px;
+  font-weight: 700;
+}
+.button.primary {
+  background: #145da6;
+  box-shadow: 0 4px 12px #145da621;
+}
+.button.primary:hover:not(:disabled) {
+  background: #0f4f91;
+}
+.registration form > .button.primary.full {
+  min-height: 54px;
+  margin-top: 16px;
+  font-size: 16px;
+  font-weight: 750;
+}
+footer {
+  color: #657c92;
+  font-weight: 600;
+}
+@media (max-width: 600px) {
+  .site-header {
+    height: 74px;
+    padding: 0 14px;
+  }
+  .gs-logo {
+    width: 108px;
+    height: 44px;
+  }
+  .admin-link,
+  .my-receipts-link {
+    font-size: 11px;
+    gap: 5px;
+  }
+  .project-banner {
+    padding: 13px 12px;
+  }
+  .project-banner strong {
+    font-size: 15px;
+  }
+  .project-banner span {
+    font-size: 11px;
+  }
+  .registration {
+    padding: 20px 12px 20px;
+  }
+  .steps {
+    margin: 11px 0 18px;
+    padding: 12px 8px;
+    border-radius: 14px;
+  }
+  .steps li {
+    font-size: 10px;
+    font-weight: 650;
+  }
+  .steps li:not(:last-child)::after {
+    left: calc(50% + 16px);
+    width: calc(100% - 32px);
+  }
+  .card {
+    padding: 18px 15px 20px;
+    border-radius: 18px;
+  }
+  .section-heading {
+    gap: 10px;
+    margin-bottom: 16px;
+    padding-bottom: 14px;
+  }
+  .section-heading h2 {
+    font-size: 18px;
+  }
+  .section-heading p {
+    font-size: 12px;
+  }
+  .photo-panel {
+    padding: 10px;
+    margin-bottom: 20px;
+  }
+  .photo-capture-button {
+    min-height: 52px;
+    font-size: 14px;
+  }
+  .field {
+    margin-bottom: 14px;
+  }
+  .registration form > .button.primary.full {
+    min-height: 52px;
+    margin-top: 12px;
+  }
+  footer {
+    padding-top: 16px;
+    padding-bottom: 16px;
+  }
+}
 .brand-button {
   border: 0;
   background: transparent;

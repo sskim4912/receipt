@@ -343,10 +343,11 @@ function PhotoCapture({ photo, camera, onChange, onError, ocrMessage }) {
         }}
       />
       <button
-        className="button secondary full"
+        className="button secondary full photo-capture-button"
         type="button"
         onClick={() => camera.current?.click()}
       >
+        <Icon name="camera" size={19} />
         {photo ? '다시 촬영' : '영수증 사진 촬영'}
       </button>
       {ocrMessage && (
@@ -555,7 +556,7 @@ function App() {
         <main className="registration">
           <h2 className="process-title">처리 절차</h2>
           <ol className="steps" aria-label="등록 단계">
-            {['영수증 사진 촬영', '필수 정보 입력', '입력 확인 및 전송'].map((s, i) => (
+            {['영수증 사진 촬영', '필수 입력 요청 사항', '입력 확인 및 전송'].map((s, i) => (
               <li
                 key={s}
                 className={i === step ? 'active' : i < step ? 'complete' : ''}
@@ -590,7 +591,7 @@ function App() {
                   ocrMessage={ocrMessage}
                 />
                 <CoreFields value={core} onChange={setCore} simple />
-                <div className="section-heading">
+                <div className="section-heading section-heading-required">
                   <span className="section-number">2</span>
                   <div>
                     <h2>필수 입력 요청 사항</h2>
