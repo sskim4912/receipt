@@ -669,7 +669,11 @@ function App() {
         </main>
       )}
       <footer>
-        Vision : 투명한 신뢰와 끊임없는 혁신으로 더 안전하고 행복한 삶의 미래를 완성합니다.
+        <span className="vision-label">Vision :</span>
+        <span className="vision-copy">
+          <span>투명한 신뢰와 끊임없는 혁신으로</span>
+          <span>더 안전하고 행복한 삶의 미래를 완성합니다.</span>
+        </span>
       </footer>
       {login && (
         <Login

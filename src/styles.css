@@ -1599,7 +1599,23 @@ body {
 }
 footer {
   color: #657c92;
-  font-weight: 600;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 7px;
+  text-align: left;
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: normal;
+}
+.vision-label {
+  color: #34556d;
+  font-weight: 750;
+  white-space: nowrap;
+}
+.vision-copy {
+  display: grid;
+  font-weight: 650;
 }
 @media (max-width: 600px) {
   .site-header {
@@ -1673,6 +1689,7 @@ footer {
   footer {
     padding-top: 16px;
     padding-bottom: 16px;
+    font-size: 12px;
   }
 }
 .brand-button {
