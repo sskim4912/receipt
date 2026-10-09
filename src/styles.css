@@ -2058,6 +2058,9 @@ footer {
   .history-row .detail-grid {
     grid-template-columns: 1fr 1fr;
   }
+  .history-row .employee-detail-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
   .history-list-header {
     display: none;
   }
@@ -2096,8 +2099,13 @@ footer {
     padding: 12px;
   }
   .employee-detail-grid > div {
-    grid-template-columns: 92px minmax(0, 1fr);
+    grid-template-columns: minmax(84px, 30%) minmax(0, 1fr);
     gap: 8px;
+  }
+  .employee-detail-grid dd {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    word-break: normal;
   }
   .list-tools {
     gap: 5px;
