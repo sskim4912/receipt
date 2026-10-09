@@ -1616,6 +1616,23 @@ body {
   border-radius: 15px;
   background: #f7f9fc;
 }
+.photo-step-panel {
+  margin-bottom: 18px;
+  padding: 14px;
+  border: 1px solid #e5ebf2;
+  border-radius: 15px;
+  background: #f7f9fc;
+}
+.photo-step-panel .section-heading {
+  margin-bottom: 14px;
+}
+.photo-step-panel .photo-panel {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
 .confirmation-action-panel .section-heading-required {
   margin-top: 0;
 }
@@ -1705,6 +1722,18 @@ footer {
   .photo-panel {
     padding: 10px;
     margin-bottom: 20px;
+  }
+  .photo-step-panel {
+    margin-bottom: 14px;
+    padding: 11px;
+  }
+  .photo-step-panel .section-heading {
+    margin-bottom: 12px;
+    padding-bottom: 11px;
+  }
+  .photo-step-panel .photo-panel {
+    margin-bottom: 0;
+    padding: 0;
   }
   .photo-capture-button {
     min-height: 52px;

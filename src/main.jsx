@@ -661,28 +661,30 @@ function App() {
           <ErrorBox message={error} />
           {screen === 'manual' && (
             <section className="card">
-              <div className="section-heading">
-                <span className="section-number">1</span>
-                <div>
-                  <h2>영수증 사진 촬영</h2>
-                  <p>
-                    <span className="photo-instruction-line">
-                      선명하게, 크게 사진을 찍어주세요.
-                    </span>
-                    <span className="photo-instruction-line">
-                      사진을 촬영하면 주요 정보가 입력됩니다.
-                    </span>
-                  </p>
-                </div>
-              </div>
               <form onSubmit={confirm} noValidate>
-                <PhotoCapture
-                  photo={photo}
-                  camera={camera}
-                  onChange={handlePhoto}
-                  onError={setError}
-                  ocrMessage={ocrMessage}
-                />
+                <div className="photo-step-panel">
+                  <div className="section-heading">
+                    <span className="section-number">1</span>
+                    <div>
+                      <h2>영수증 사진 촬영</h2>
+                      <p>
+                        <span className="photo-instruction-line">
+                          선명하게, 크게 사진을 찍어주세요.
+                        </span>
+                        <span className="photo-instruction-line">
+                          사진을 촬영하면 주요 정보가 입력됩니다.
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+                  <PhotoCapture
+                    photo={photo}
+                    camera={camera}
+                    onChange={handlePhoto}
+                    onError={setError}
+                    ocrMessage={ocrMessage}
+                  />
+                </div>
                 <CoreFields value={core} onChange={updateCore} simple />
                 <div className="section-heading section-heading-required">
                   <span className="section-number">2</span>
