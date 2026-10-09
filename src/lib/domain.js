@@ -29,6 +29,7 @@ export const LABELS = {
   memo: '메모',
   registrationMethod: '등록방식',
   inputSource: '입력방식',
+  voucherStatus: '전표 처리',
   status: '처리상태',
   createdAt: '등록일시',
   updatedAt: '수정일시',
@@ -158,6 +159,7 @@ export function display(r, key) {
   if (key === 'status') return STATUSES[r[key]] || r[key];
   if (key === 'registrationMethod') return METHODS[r[key]] || r[key];
   if (key === 'inputSource') return INPUT_SOURCES[r[key]] || '기록없음';
+  if (key === 'voucherStatus') return r[key] || '미선택';
   if (['createdAt', 'updatedAt'].includes(key))
     return r[key]
       ? new Date(r[key]).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
@@ -209,6 +211,7 @@ const csvFields = [
   'memo',
   'registrationMethod',
   'status',
+  'voucherStatus',
   'createdAt',
   'updatedAt',
 ];

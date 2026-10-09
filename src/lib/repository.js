@@ -167,6 +167,22 @@ export class ReceiptRepository {
     });
     return this.get(id);
   }
+  async voucherStatus(id, version, voucherStatus) {
+    if (!['', 'O', 'X'].includes(voucherStatus))
+      throw new Error('전표 처리 값은 O 또는 X로 선택해주세요.');
+    await this.driver.transaction(async (tx) => {
+      const r = await tx.get(this.path(id));
+      if (!r) throw new Error('영수증을 찾을 수 없습니다.');
+      if (r.version !== version)
+        throw new Error('다른 사용자가 이미 수정했습니다. 새로고침 후 다시 선택해주세요.');
+      tx.put(
+        this.path(id),
+        { ...r, voucherStatus: voucherStatus || null, version: r.version + 1 },
+        { timestamps: ['updatedAt'] },
+      );
+    });
+    return this.get(id);
+  }
   async remove(id, version) {
     await this.driver.transaction(async (tx) => {
       const r = await tx.get(this.path(id));

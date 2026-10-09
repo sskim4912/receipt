@@ -1224,7 +1224,7 @@ function Admin({ onBack }) {
           <p>등록내역을 확인하고 수정·삭제·처리상태를 관리하세요.</p>
         </div>
         <button className="button secondary" disabled={busy} onClick={onBack}>
-          등록 화면으로
+          홈 화면으로 이동
         </button>
       </div>
       <div className="stats">
@@ -1334,7 +1334,7 @@ function Admin({ onBack }) {
         )}
         <div className="receipt-table" role="table" aria-label="등록 영수증">
           <div className="table-head" role="row">
-            {['일자', '사용자', '사용처', '금액', '승인번호', '사진', '상태'].map((t) => (
+            {['일자', '사용자', '사용처', '금액', '승인번호', '사진', '상태', '전표 처리'].map((t) => (
               <span role="columnheader" key={t}>
                 {t}
               </span>
@@ -1371,11 +1371,32 @@ function Admin({ onBack }) {
                     첨부 보기
                   </button>
                 ) : (
-                  <small className="no-image">미보관</small>
+                  <small className="no-image">
+                    <Icon name="receipt" size={14} />
+                    사진 없음
+                  </small>
                 )}
-                <div>
+                <div className="admin-status-cell">
                   <Badge status={r.status} />
                   {r.suspectedDuplicate && <small className="duplicate-note">중복 의심</small>}
+                </div>
+                <div className="voucher-cell">
+                  <span className="voucher-label">전표 처리</span>
+                  <select
+                    className="voucher-select"
+                    aria-label={`${r.merchantName || '영수증'} 전표 처리`}
+                    value={r.voucherStatus || ''}
+                    disabled={busy}
+                    onChange={(e) =>
+                      mutate(() =>
+                        repo.voucherStatus(r.receiptId, r.version, e.target.value),
+                      )
+                    }
+                  >
+                    <option value="">선택</option>
+                    <option value="O">O</option>
+                    <option value="X">X</option>
+                  </select>
                 </div>
               </div>
               {expanded === r.receiptId && (
