@@ -6,6 +6,7 @@ export const STATUSES = {
   completed: '처리완료',
 };
 export const METHODS = { manual: '수기입력', team: '관리팀 제출' };
+export const INPUT_SOURCES = { ocr: '자동입력', manual: '수기입력' };
 export const CATEGORIES = ['식비', '교통비', '숙박비', '자재·소모품', '기타'];
 export const LABELS = {
   receiptDate: '사용일자',
@@ -27,6 +28,7 @@ export const LABELS = {
   location: '사용장소',
   memo: '메모',
   registrationMethod: '등록방식',
+  inputSource: '입력방식',
   status: '처리상태',
   createdAt: '등록일시',
   updatedAt: '수정일시',
@@ -155,6 +157,7 @@ export function display(r, key) {
   if (key === 'approvalNumber' && r.approvalState === 'unreadable' && !r[key]) return '미확인';
   if (key === 'status') return STATUSES[r[key]] || r[key];
   if (key === 'registrationMethod') return METHODS[r[key]] || r[key];
+  if (key === 'inputSource') return INPUT_SOURCES[r[key]] || '기록없음';
   if (['createdAt', 'updatedAt'].includes(key))
     return r[key]
       ? new Date(r[key]).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })

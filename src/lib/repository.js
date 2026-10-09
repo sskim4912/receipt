@@ -50,6 +50,7 @@ export class ReceiptRepository {
     attempts = 0,
     recognitionEngine = 'none',
     attachment = null,
+    inputSource = 'manual',
   ) {
     const input = validateInput(core, extras, mode),
       key = await duplicateKey(input),
@@ -83,6 +84,7 @@ export class ReceiptRepository {
         version: 1,
         analysisAttempts: Math.min(3, Math.max(0, attempts)),
         recognitionEngine: recognitionEngine === 'tesseract-browser' ? recognitionEngine : 'none',
+        inputSource: inputSource === 'ocr' ? 'ocr' : 'manual',
         imageStored: Boolean(attachment?.key),
         attachmentKey: attachment?.key || null,
         attachmentName: attachment?.fileName || null,

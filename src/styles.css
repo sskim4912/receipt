@@ -661,6 +661,14 @@ fieldset {
   background: #e4f4ec;
   color: #277852;
 }
+.badge.input-source-ocr {
+  background: #e4f4ec;
+  color: #277852;
+}
+.badge.input-source-manual {
+  background: #fff0e0;
+  color: #ab6421;
+}
 .error {
   background: #fff0ed;
   color: #ad4735;

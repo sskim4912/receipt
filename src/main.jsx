@@ -14,6 +14,7 @@ import {
 } from './lib/attachments.js';
 import {
   STATUSES,
+  INPUT_SOURCES,
   METHODS,
   CATEGORIES,
   LABELS,
@@ -33,10 +34,17 @@ import gsLogo from './assets/gs-construction-logo.png';
 import './styles.css';
 const repo = new ReceiptRepository(new FirestoreRest(firebaseConfig));
 const statusKeys = Object.keys(STATUSES);
-function Badge({ status }) {
+function Badge({ status, inputSource, showInputSource = false }) {
+  const source = INPUT_SOURCES[inputSource] ? inputSource : 'manual';
+  const label =
+    showInputSource && status === 'manual_review'
+      ? INPUT_SOURCES[source]
+      : STATUSES[status] || '확인필요';
   return (
-    <span className={`badge status-${statusKeys.indexOf(status)}`}>
-      {STATUSES[status] || '확인필요'}
+    <span
+      className={`badge status-${statusKeys.indexOf(status)}${showInputSource && status === 'manual_review' ? ` input-source-${source}` : ''}`}
+    >
+      {label}
     </span>
   );
 }
@@ -382,6 +390,7 @@ function App() {
     [extras, setExtras] = useState({ ...EMPTY_EXTRAS }),
     [photo, setPhoto] = useState(null),
     [ocrMessage, setOcrMessage] = useState(''),
+    [inputSource, setInputSource] = useState('manual'),
     [saved, setSaved] = useState(null),
     [deleteDraft, setDeleteDraft] = useState(false);
   const camera = useRef(),
@@ -404,6 +413,7 @@ function App() {
     setScreen('manual');
     setPhoto(null);
     setOcrMessage('');
+    setInputSource('manual');
     setCore({ ...EMPTY_CORE });
     setExtras({ ...EMPTY_EXTRAS });
     setError('');
@@ -415,6 +425,7 @@ function App() {
     const previousAttachment = photo?.attachment?.key;
     ocrRequest.current?.abort();
     setPhoto({ ...value, attachment: null, uploadState: 'uploading' });
+    setInputSource('manual');
     setError('');
     const controller = new AbortController();
     ocrRequest.current = controller;
@@ -446,6 +457,8 @@ function App() {
     if (recognitionResult.status === 'fulfilled') {
       const recognized = recognitionResult.value;
       const extracted = Object.entries(recognized).filter(([, v]) => v);
+      if (recognized.merchantName && recognized.amount && recognized.receiptDate)
+        setInputSource('ocr');
       const { location, ...coreValues } = recognized;
       setCore((current) => ({
         ...current,
@@ -554,6 +567,7 @@ function App() {
         0,
         'none',
         attachment,
+        inputSource,
       );
       if (!receipt)
         throw new Error('저장 결과를 확인할 수 없습니다. 입력내용을 유지한 채 다시 시도해주세요.');
@@ -714,7 +728,7 @@ function App() {
                   중복 내용 의심, 확인 요망
                 </div>
               ) : (
-                <Badge status={saved.status} />
+                <Badge status={saved.status} inputSource={saved.inputSource} showInputSource />
               )}
               <p className="receipt-id">
                 등록번호: {saved.attachmentName || makeReceiptFileName(saved)}
@@ -1006,7 +1020,7 @@ function History({ onBack }) {
                   <strong className="history-amount">{money(r.amount)}</strong>
                   <ReceiptThumbnail receipt={r} onClick={setViewingImage} variant="list" />
                   <span className="history-status">
-                    <Badge status={r.status} />
+                    <Badge status={r.status} inputSource={r.inputSource} showInputSource />
                   </span>
                 </div>
                 {expanded === r.receiptId && (
