@@ -396,6 +396,7 @@ function App() {
   const camera = useRef(),
     lock = useRef(false),
     ocrRequest = useRef(null),
+    attachmentUpload = useRef(null),
     coreEditVersion = useRef(0),
     attachmentRequest = useRef(0),
     requestId = useRef(crypto.randomUUID());
@@ -410,6 +411,7 @@ function App() {
     attachmentRequest.current++;
     ocrRequest.current?.abort();
     ocrRequest.current = null;
+    attachmentUpload.current = null;
     if (photo?.attachment?.key) deleteReceiptAttachment(photo.attachment.key).catch(() => {});
     setScreen('manual');
     setPhoto(null);
@@ -434,33 +436,38 @@ function App() {
     setError('');
     const controller = new AbortController();
     ocrRequest.current = controller;
-    setOcrMessage('영수증 사진을 저장하고 읽는 중입니다…');
-    const [uploadResult, recognitionResult] = await Promise.allSettled([
-      uploadReceiptAttachment(value.file, { receiptId: requestId.current }),
-      recognizeReceipt(value.file, { signal: controller.signal }),
-    ]);
-    if (generation !== attachmentRequest.current) {
-      if (uploadResult.status === 'fulfilled')
-        deleteReceiptAttachment(uploadResult.value.key).catch(() => {});
-      return;
-    }
-    if (uploadResult.status === 'fulfilled') {
-      setPhoto((current) =>
-        current?.file === value.file
-          ? { ...current, attachment: uploadResult.value, uploadState: 'saved' }
-          : current,
-      );
-      if (previousAttachment && previousAttachment !== uploadResult.value.key)
-        deleteReceiptAttachment(previousAttachment).catch(() => {});
-    } else {
-      setPhoto((current) =>
-        current?.file === value.file ? { ...current, uploadState: 'error' } : current,
-      );
-      if (previousAttachment) deleteReceiptAttachment(previousAttachment).catch(() => {});
-      setError(uploadResult.reason?.message || '영수증 사진을 서버에 저장하지 못했습니다.');
-    }
-    if (recognitionResult.status === 'fulfilled') {
-      const recognized = recognitionResult.value;
+    setOcrMessage('영수증을 판독하고 있습니다. 인식된 항목은 먼저 입력됩니다…');
+    const uploadPromise = uploadReceiptAttachment(value.file, {
+      receiptId: requestId.current,
+    }).then(
+      (attachment) => {
+        if (generation !== attachmentRequest.current) {
+          deleteReceiptAttachment(attachment.key).catch(() => {});
+          return null;
+        }
+        setPhoto((current) =>
+          current?.file === value.file ? { ...current, attachment, uploadState: 'saved' } : current,
+        );
+        if (previousAttachment && previousAttachment !== attachment.key)
+          deleteReceiptAttachment(previousAttachment).catch(() => {});
+        return attachment;
+      },
+      (uploadError) => {
+        if (generation === attachmentRequest.current) {
+          setPhoto((current) =>
+            current?.file === value.file ? { ...current, uploadState: 'error' } : current,
+          );
+          if (previousAttachment) deleteReceiptAttachment(previousAttachment).catch(() => {});
+          setError(uploadError?.message || '영수증 사진을 서버에 저장하지 못했습니다.');
+        }
+        return null;
+      },
+    );
+    attachmentUpload.current = { file: value.file, promise: uploadPromise };
+
+    try {
+      const recognized = await recognizeReceipt(value.file, { signal: controller.signal });
+      if (generation !== attachmentRequest.current || controller.signal.aborted) return;
       const extracted = Object.entries(recognized).filter(([, v]) => v);
       if (
         recognized.merchantName &&
@@ -480,16 +487,14 @@ function App() {
       if (location)
         setExtras((current) => ({ ...current, location: current.location || location }));
       setOcrMessage(
-        `${
-          extracted.length
-            ? '인식된 항목을 빈 입력란에 넣었습니다.\n원본과 대조해 확인해주세요.'
-            : '읽을 수 있는 항목을 찾지 못했습니다. 이상한 값은 넣지 않았으니 직접 입력해주세요.'
-        }${uploadResult.status === 'fulfilled' ? '\n사진을 서버에 저장했습니다.' : ''}`,
+        extracted.length
+          ? '인식된 항목을 빈 입력란에 넣었습니다.\n원본과 대조해 확인해주세요.'
+          : '읽을 수 있는 항목을 찾지 못했습니다. 이상한 값은 넣지 않았으니 직접 입력해주세요.',
       );
-    } else if (!controller.signal.aborted) {
-      const err = recognitionResult.reason;
+    } catch (err) {
+      if (generation !== attachmentRequest.current || controller.signal.aborted) return;
       setOcrMessage(
-        `영수증 판독에 실패했습니다. 사진을 확인하며 직접 입력해주세요. (${err.message})${uploadResult.status === 'fulfilled' ? '\n사진을 서버에 저장했습니다.' : ''}`,
+        `영수증 판독에 실패했습니다. 사진을 확인하며 직접 입력해주세요. (${err.message})`,
       );
     }
   }
@@ -564,10 +569,14 @@ function App() {
     try {
       let attachment = photo?.attachment || null;
       if (photo?.file) {
-        if (!attachment)
-          attachment = await uploadReceiptAttachment(photo.file, {
-            receiptId: requestId.current,
-          });
+        if (!attachment) {
+          const pendingUpload =
+            attachmentUpload.current?.file === photo.file ? attachmentUpload.current.promise : null;
+          attachment = (pendingUpload ? await pendingUpload : null) ||
+            (await uploadReceiptAttachment(photo.file, {
+              receiptId: requestId.current,
+            }));
+        }
         attachment = await finalizeReceiptAttachment(attachment.key, {
           receiptId: requestId.current,
           merchantName: core.merchantName,
@@ -591,6 +600,7 @@ function App() {
       if (!receipt)
         throw new Error('저장 결과를 확인할 수 없습니다. 입력내용을 유지한 채 다시 시도해주세요.');
       setSaved(receipt);
+      if (attachmentUpload.current?.file === photo?.file) attachmentUpload.current = null;
       setPhoto(null);
       setScreen('success');
     } catch (err) {
