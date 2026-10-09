@@ -207,20 +207,34 @@ fieldset {
   font-weight: 650;
 }
 .steps .active {
-  color: var(--blue);
   font-weight: 700;
 }
 .steps .active > span {
-  color: white;
-  background: var(--blue);
   box-shadow: 0 0 0 4px #e2edf7;
 }
 .steps .complete {
-  color: #52748e;
+  font-weight: 650;
 }
-.steps .complete > span {
-  background: #dcecf8;
-  color: var(--blue);
+.steps li:nth-child(1) {
+  color: #527ca9;
+}
+.steps li:nth-child(1) > span {
+  background: #e3edf8;
+  color: #527ca9;
+}
+.steps li:nth-child(2) {
+  color: #285f9f;
+}
+.steps li:nth-child(2) > span {
+  background: #a9c5e4;
+  color: #214f86;
+}
+.steps li:nth-child(3) {
+  color: #173f73;
+}
+.steps li:nth-child(3) > span {
+  background: #285f9f;
+  color: #fff;
 }
 .upload-card,
 .card {
