@@ -497,16 +497,10 @@ function App() {
       <header className="site-header">
         <button
           className="brand brand-button"
-          onClick={() => navigate('manual')}
-          disabled={busy}
-          aria-label="GS건설 영수증 등록화면"
+          onClick={() => window.location.reload()}
+          aria-label="페이지 새로고침"
         >
           <img className="gs-logo" src={gsLogo} alt="GS건설" />
-          <span className="brand-divider" />
-          <div>
-            <strong>Aurora Project</strong>
-            <small>현장 영수증 관리</small>
-          </div>
         </button>
         <button
           className="admin-link"
@@ -520,10 +514,12 @@ function App() {
           관리자 접속
         </button>
       </header>
-      <div className="dev-banner">
-                Spark 테스트 · 사진은 OCR·AI 판독에만 사용 · Firebase 저장 안 함 · 공개 Firestore
-        규칙 · 관리자 암호는 화면 잠금용
-      </div>
+      {!['admin', 'history'].includes(screen) && (
+        <div className="project-banner">
+          <strong>Aurora Project 영수증 등록</strong>
+          <span>영수증을 확인하고 사용내역을 간편하게 기록하세요.</span>
+        </div>
+      )}
       {screen === 'admin' ? (
         <Admin
           onBack={() => {
@@ -534,11 +530,6 @@ function App() {
         <History onBack={reset} />
       ) : (
         <main className="registration">
-          <div className="page-intro">
-            <span className="eyebrow">AURORA PROJECT · 직원 화면</span>
-            <h1>영수증 등록</h1>
-            <p>영수증을 확인하고, 사용내역을 간편하게 기록하세요.</p>
-          </div>
           <div className="employee-nav">
             <button className="text-button" onClick={() => navigate('history')} disabled={busy}>
               처리상태 조회
