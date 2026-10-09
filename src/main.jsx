@@ -1551,7 +1551,7 @@ function Admin({ onBack }) {
                   )
                 }
               />
-              사진 저장
+              사진 전체
             </span>
             <span role="columnheader">입력상태</span>
             <span role="columnheader">전표 처리</span>
@@ -1565,7 +1565,7 @@ function Admin({ onBack }) {
                   setSelectedIds(e.target.checked ? rows.map((r) => r.receiptId) : [])
                 }
               />
-              삭제
+              삭제 전체
             </span>
           </div>
           {rows.length === 0 && !busy && (
