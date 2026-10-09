@@ -1067,7 +1067,7 @@ function History({ onBack }) {
           disabled={busy}
           onClick={onBack}
         >
-          등록 화면으로 이동 버튼
+          홈 화면으로 이동
         </button>
       </section>
       {viewingImage && (
