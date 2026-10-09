@@ -113,15 +113,30 @@ fieldset {
   height: 76px;
   object-fit: contain;
 }
+.header-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+}
 .admin-link {
   display: flex;
   align-items: center;
   gap: 7px;
   background: none;
   border: 0;
-  color: #546779;
+  color: #243b55;
   font-size: 13px;
+  font-weight: 750;
   padding: 10px;
+}
+.my-receipts-link {
+  background: none;
+  border: 0;
+  color: #243b55;
+  font-size: 12px;
+  font-weight: 750;
+  padding: 4px 10px 8px;
 }
 .registration {
   width: 100%;
@@ -1381,10 +1396,6 @@ footer span {
   text-align: left;
   padding: 0;
   color: inherit;
-}
-.employee-nav {
-  text-align: center;
-  margin: 12px 0 -14px;
 }
 .preview-button {
   display: block;

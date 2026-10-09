@@ -515,17 +515,26 @@ function App() {
         >
           <img className="gs-logo" src={gsLogo} alt="GS건설" />
         </button>
-        <button
-          className="admin-link"
-          disabled={busy}
-          onClick={() => {
-            if (screen === 'admin') return;
-            setLogin(true);
-          }}
-        >
-          <Icon name="shield" size={17} />
-          관리자 접속
-        </button>
+        <div className="header-actions">
+          <button
+            className="admin-link"
+            disabled={busy}
+            onClick={() => {
+              if (screen === 'admin') return;
+              setLogin(true);
+            }}
+          >
+            <Icon name="shield" size={17} />
+            관리자 접속
+          </button>
+          <button
+            className="my-receipts-link"
+            disabled={busy}
+            onClick={() => navigate('history')}
+          >
+            본인 등록 내용 확인
+          </button>
+        </div>
       </header>
       {!['admin', 'history'].includes(screen) && (
         <div className="project-banner">
@@ -543,11 +552,6 @@ function App() {
         <History onBack={reset} />
       ) : (
         <main className="registration">
-          <div className="employee-nav">
-            <button className="text-button" onClick={() => navigate('history')} disabled={busy}>
-              등록 내역 확인
-            </button>
-          </div>
           <h2 className="process-title">처리 절차</h2>
           <ol className="steps" aria-label="등록 단계">
             {['영수증 사진 촬영', '필수 정보 입력', '입력 확인 및 전송'].map((s, i) => (
