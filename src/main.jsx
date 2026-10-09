@@ -579,6 +579,12 @@ function App() {
                   ocrMessage={ocrMessage}
                 />
                 <CoreFields value={core} onChange={setCore} simple />
+                <div className="section-heading">
+                  <span className="section-number">2</span>
+                  <div>
+                    <h2>필수 입력 요청 사항</h2>
+                  </div>
+                </div>
                 <ExtraFields value={extras} onChange={setExtras} />
                 <ErrorBox message={error} />
                 <button className="button primary full" disabled={busy}>
