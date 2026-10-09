@@ -598,7 +598,7 @@ function App() {
                 <ExtraFields value={extras} onChange={setExtras} />
                 <ErrorBox message={error} />
                 <button className="button primary full" disabled={busy}>
-                  입력내용 확인 및 전송
+                  입력 내용 확인
                 </button>
               </form>
             </section>
