@@ -905,22 +905,7 @@ function Detail({ r, onViewReceipt, employeeView = false }) {
       {!employeeView && <p className="file-label">등록번호: {r.receiptId}</p>}
       <section className="detail-attachment">
         <h3>{employeeView ? '첨부 사진' : '영수증 사진'}</h3>
-        {r.attachmentKey ? (
-          <button
-            className="detail-attachment-preview"
-            type="button"
-            onClick={() => onViewReceipt(r)}
-            aria-label="영수증 사진 크게 보기"
-          >
-            <img
-              src={receiptAttachmentUrl(r.attachmentKey)}
-              alt={`${r.merchantName || '영수증'} 사진 미리보기`}
-            />
-            <span>썸네일을 눌러 크게 보기</span>
-          </button>
-        ) : (
-          <p className="detail-attachment-empty">저장된 영수증 사진이 없습니다.</p>
-        )}
+        <ReceiptThumbnail receipt={r} onClick={onViewReceipt} variant="detail" />
       </section>
       {!employeeView && (
         <div className="notice">직접 입력한 내용은 원본 영수증과 대조해주세요.</div>
@@ -1019,20 +1004,7 @@ function History({ onBack }) {
                     </span>
                   </button>
                   <strong className="history-amount">{money(r.amount)}</strong>
-                  {r.attachmentKey ? (
-                    <button
-                      className="history-thumb-button"
-                      type="button"
-                      onClick={() => setViewingImage(r)}
-                      aria-label={`${r.merchantName || '영수증'} 사진 크게 보기`}
-                    >
-                      <img src={receiptAttachmentUrl(r.attachmentKey)} alt="" loading="lazy" />
-                    </button>
-                  ) : (
-                    <span className="history-thumb" aria-label="사진 없음">
-                      —
-                    </span>
-                  )}
+                  <ReceiptThumbnail receipt={r} onClick={setViewingImage} variant="list" />
                   <span className="history-status">
                     <Badge status={r.status} />
                   </span>
@@ -1061,6 +1033,7 @@ function History({ onBack }) {
   );
 }
 function ReceiptImageViewer({ receipt, onClose }) {
+  const [failed, setFailed] = useState(false);
   useEffect(() => {
     const closeOnEscape = (event) => event.key === 'Escape' && onClose();
     document.addEventListener('keydown', closeOnEscape);
@@ -1082,12 +1055,54 @@ function ReceiptImageViewer({ receipt, onClose }) {
       >
         ×
       </button>
-      <img
-        src={receiptAttachmentUrl(receipt.attachmentKey)}
-        alt={`${receipt.merchantName || '영수증'} 첨부 사진`}
-        onClick={onClose}
-      />
+      {receipt.attachmentKey && !failed ? (
+        <img
+          src={receiptAttachmentUrl(receipt.attachmentKey)}
+          alt={`${receipt.merchantName || '영수증'} 첨부 사진`}
+          onClick={onClose}
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        <div className="receipt-image-unavailable" onClick={onClose}>
+          첨부파일을 불러올 수 없습니다.
+          <small>화면을 누르면 상세 내역으로 돌아갑니다.</small>
+        </div>
+      )}
     </div>
+  );
+}
+function ReceiptThumbnail({ receipt, onClick, variant }) {
+  const [failed, setFailed] = useState(false);
+  const hasImage = Boolean(receipt.attachmentKey) && !failed;
+  return (
+    <button
+      className={`receipt-thumbnail ${variant === 'list' ? 'history-thumb-button' : 'detail-attachment-preview'}`}
+      type="button"
+      disabled={!receipt.attachmentKey}
+      onClick={() => onClick?.(receipt)}
+      aria-label={
+        receipt.attachmentKey
+          ? `${receipt.merchantName || '영수증'} 사진 크게 보기`
+          : '첨부 사진 없음'
+      }
+    >
+      {hasImage ? (
+        <img
+          src={receiptAttachmentUrl(receipt.attachmentKey)}
+          alt=""
+          loading={variant === 'list' ? 'lazy' : undefined}
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        <span className="receipt-thumbnail-placeholder">
+          <Icon name="receipt" size={variant === 'list' ? 18 : 28} />
+          <small>{variant === 'list' ? '사진 없음' : '사진 미첨부'}</small>
+        </span>
+      )}
+      {variant === 'detail' && (
+        <span>{receipt.attachmentKey ? '썸네일을 눌러 크게 보기' : '영수증 사진 자리'}</span>
+      )}
+    </button>
   );
 }
 function Admin({ onBack }) {

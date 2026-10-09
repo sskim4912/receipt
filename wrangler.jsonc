@@ -8,12 +8,6 @@
     "VERTEX_AI_LOCATION": "us-central1",
     "VERTEX_AI_MODEL": "gemini-2.5-flash-lite",
   },
-  "r2_buckets": [
-    {
-      "binding": "RECEIPTS_BUCKET",
-      "bucket_name": "receipt-attachments",
-    },
-  ],
   "assets": {
     "directory": "./docs",
     "binding": "ASSETS",
