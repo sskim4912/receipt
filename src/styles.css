@@ -697,14 +697,12 @@ fieldset {
 }
 footer {
   text-align: center;
-  color: #9cabb8;
-  font-size: 11px;
-  letter-spacing: 0.2px;
-  padding: 25px;
-}
-footer span {
-  margin: 0 10px;
-  color: #bac6d1;
+  color: #546779;
+  font-size: clamp(7px, 2.2vw, 11px);
+  font-weight: 650;
+  letter-spacing: 0;
+  white-space: nowrap;
+  padding: 25px 8px;
 }
 .project-banner {
   display: flex;
@@ -1360,9 +1358,7 @@ footer span {
   footer {
     width: 100%;
     max-width: 100%;
-    overflow-wrap: anywhere;
-    padding: 18px 12px;
-    font-size: 10px;
+    padding: 18px 8px;
   }
 }
 @media (max-width: 360px) {

@@ -670,7 +670,7 @@ function App() {
         </main>
       )}
       <footer>
-        GS건설 <span>·</span>Aurora Project
+        Vision : 투명한 신뢰와 끊임없는 혁신으로 더 안전하고 행복한 삶의 미래를 완성합니다.
       </footer>
       {login && (
         <Login
