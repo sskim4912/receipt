@@ -419,7 +419,7 @@ function App() {
         setExtras((current) => ({ ...current, location: current.location || location }));
       setOcrMessage(
         extracted.length
-          ? `인식된 ${extracted.length}개 항목을 빈 입력란에 넣었습니다.\n원본과 대조해 확인해주세요.`
+          ? '인식된 항목을 빈 입력란에 넣었습니다.\n원본과 대조해 확인해주세요.'
           : '읽을 수 있는 항목을 찾지 못했습니다. 이상한 값은 넣지 않았으니 직접 입력해주세요.',
       );
     } catch (err) {
