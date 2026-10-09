@@ -1,5 +1,5 @@
 // Firestore's public REST API, with security rules applied to every request.
-// No image, credential, account, or billable service integration is used here.
+// Receipt bytes live in the Worker R2 binding; Firestore stores only their object key and name.
 export function encodeValue(v) {
   if (v === null) return { nullValue: null };
   if (typeof v === 'string') return { stringValue: v };

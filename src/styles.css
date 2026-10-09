@@ -1761,34 +1761,140 @@ footer {
 .history-return-button {
   min-height: 54px;
   margin-top: 16px;
-  background: #f8fbff;
+  background: #eaf2fa;
+  border-color: #a8c3de;
+  color: #074477;
   font-size: 15px;
 }
+.attachment-save-state {
+  margin: 10px 0 0;
+  color: #5e7186;
+  font-size: 12px;
+  text-align: left;
+}
+.attachment-save-state.saved {
+  color: #267259;
+}
+.attachment-save-state.error {
+  color: #a53c37;
+}
+.history-list-header,
+.history-open {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 100px 48px 110px;
+  align-items: center;
+  gap: 12px;
+}
+.history-list-header {
+  padding: 11px 4px;
+  border-bottom: 1px solid var(--border);
+  color: #6c7e92;
+  font-size: 11px;
+  font-weight: 750;
+}
+.history-list-header span:not(:first-child) {
+  text-align: center;
+}
 .history-row {
-  border-top: 1px solid var(--border);
-  padding: 15px 0;
+  border-bottom: 1px solid var(--border);
 }
 .history-open {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
   width: 100%;
   text-align: left;
   background: transparent;
   border: 0;
-  padding: 12px 0;
+  padding: 12px 4px;
   color: #34556d;
 }
-.history-open strong {
+.history-primary {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+.history-primary > small,
+.history-meta {
+  color: #7c8da0;
+  font-size: 10px;
+  line-height: 1.45;
+}
+.history-primary > strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 15px;
 }
-.history-open p {
-  font-size: 11px;
-  margin-top: 6px;
+.history-amount {
+  text-align: right;
+  color: #203a55;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.history-thumb {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 48px;
+  overflow: hidden;
+  border: 1px solid #dce5ef;
+  border-radius: 6px;
+  background: #f4f7fa;
+  color: #91a0af;
+  font-size: 12px;
+}
+.history-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.history-status {
+  display: flex;
+  justify-content: center;
 }
 .history-row .detail-grid {
   margin-top: 20px;
+}
+.history-detail {
+  padding: 18px;
+  border-top: 1px solid #e6edf4;
+  background: #f8fbff;
+}
+.detail-attachment {
+  margin: 16px 0;
+  padding: 14px;
+  border: 1px solid #e2eaf2;
+  border-radius: 12px;
+  background: #fff;
+}
+.detail-attachment h3 {
+  margin-bottom: 10px;
+  color: #34556d;
+  font-size: 13px;
+}
+.detail-attachment-preview {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  max-width: 100%;
+  padding: 8px;
+  border: 1px solid #dce5ef;
+  border-radius: 9px;
+  background: #f5f8fb;
+  color: #145da6;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+}
+.detail-attachment-preview img {
+  display: block;
+  max-width: min(100%, 240px);
+  max-height: 240px;
+  object-fit: contain;
+  border-radius: 5px;
+}
+.detail-attachment-empty {
+  color: #8293a3;
+  font-size: 12px;
 }
 .list-tools {
   display: flex;
@@ -1804,6 +1910,20 @@ footer {
 .no-image {
   font-size: 10px;
   color: #8b99a7;
+}
+.attachment-link {
+  justify-self: start;
+  border: 1px solid #d6e4f2;
+  border-radius: 6px;
+  padding: 5px 8px;
+  background: #f4f8fc;
+  color: #145da6;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+}
+.attachment-link:hover {
+  background: #e8f2fb;
 }
 .danger {
   background: #b94436;
@@ -1837,6 +1957,39 @@ footer {
   }
   .history-row .detail-grid {
     grid-template-columns: 1fr 1fr;
+  }
+  .history-list-header {
+    display: none;
+  }
+  .history-open {
+    grid-template-columns: minmax(0, 1fr) 84px 42px;
+    gap: 7px;
+    padding: 12px 0;
+  }
+  .history-primary {
+    grid-row: 1 / span 2;
+  }
+  .history-amount {
+    grid-column: 2;
+    grid-row: 1;
+    font-size: 12px;
+  }
+  .history-thumb {
+    grid-column: 3;
+    grid-row: 1 / span 2;
+    width: 40px;
+    height: 48px;
+  }
+  .history-status {
+    grid-column: 2;
+    grid-row: 2;
+  }
+  .history-status .badge {
+    font-size: 9px;
+    padding: 3px 5px;
+  }
+  .history-detail {
+    padding: 12px;
   }
   .list-tools {
     gap: 5px;

@@ -42,11 +42,29 @@ export class ReceiptRepository {
         Date.now() - Date.parse(r.createdAt) < 86400000,
     );
   }
-  async create(id, core, extras, mode = 'manual', attempts = 0, recognitionEngine = 'none') {
+  async create(
+    id,
+    core,
+    extras,
+    mode = 'manual',
+    attempts = 0,
+    recognitionEngine = 'none',
+    attachment = null,
+  ) {
     const input = validateInput(core, extras, mode),
       key = await duplicateKey(input),
       fingerprint = await sha256(JSON.stringify(input)),
       suspectedDuplicate = await this.suspected(input, id);
+    const priorAttachments =
+      attachment?.fileName && attachment?.sha256
+        ? await this.driver.list(this.receipts, {
+            field: 'attachmentName',
+            value: attachment.fileName,
+          })
+        : [];
+    const duplicateAttachmentOf =
+      priorAttachments.find((receipt) => receipt.attachmentHash === attachment?.sha256)
+        ?.receiptId || null;
     await this.driver.transaction(async (tx) => {
       const existing = await tx.get(this.path(id));
       if (existing) {
@@ -54,7 +72,8 @@ export class ReceiptRepository {
           throw new Error('등록 요청 내용이 변경되었습니다. 새 등록으로 다시 시도해주세요.');
         return;
       }
-      if (key && (await tx.get(this.duplicates + '/' + key)))
+      const existingDuplicate = key ? await tx.get(this.duplicates + '/' + key) : null;
+      if (existingDuplicate && !duplicateAttachmentOf)
         throw new Error('동일한 영수증이 이미 등록되어 있습니다.');
       const data = {
         ...input,
@@ -64,13 +83,17 @@ export class ReceiptRepository {
         version: 1,
         analysisAttempts: Math.min(3, Math.max(0, attempts)),
         recognitionEngine: recognitionEngine === 'tesseract-browser' ? recognitionEngine : 'none',
-        imageStored: false,
+        imageStored: Boolean(attachment?.key),
+        attachmentKey: attachment?.key || null,
+        attachmentName: attachment?.fileName || null,
+        attachmentHash: attachment?.sha256 || null,
+        duplicateAttachmentOf,
         duplicateKey: key,
         suspectedDuplicate,
         requestFingerprint: fingerprint,
       };
       tx.put(this.path(id), data, { timestamps: ['createdAt', 'updatedAt'], create: true });
-      if (key)
+      if (key && !existingDuplicate)
         tx.put(
           this.duplicates + '/' + key,
           { receiptId: id },

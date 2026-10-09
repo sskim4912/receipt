@@ -6,6 +6,13 @@ import { ReceiptRepository } from './lib/repository.js';
 import { inspectPhoto } from './lib/photo.js';
 import { recognizeReceipt } from './lib/cloud-vision.js';
 import {
+  deleteReceiptAttachment,
+  finalizeReceiptAttachment,
+  makeReceiptFileName,
+  receiptAttachmentUrl,
+  uploadReceiptAttachment,
+} from './lib/attachments.js';
+import {
   STATUSES,
   METHODS,
   CATEGORIES,
@@ -315,13 +322,18 @@ function PhotoCapture({ photo, camera, onChange, onError, ocrMessage }) {
           aria-label="현재 사진 확대"
           type="button"
         >
-          <img
-            className="receipt-photo"
-            src={photo.url}
-            alt="브라우저에서 임시로 확인 중인 영수증"
-          />
+          <img className="receipt-photo" src={photo.url} alt="영수증 사진 미리보기" />
         </button>
       ) : null}
+      {photo?.uploadState && (
+        <p className={`attachment-save-state ${photo.uploadState}`} role="status">
+          {photo.uploadState === 'uploading'
+            ? '사진을 서버에 저장하는 중입니다.'
+            : photo.uploadState === 'saved'
+              ? '사진이 서버에 저장되었습니다.'
+              : '사진 저장에 실패했습니다. 등록 시 다시 시도합니다.'}
+        </p>
+      )}
       <input
         ref={camera}
         className="visually-hidden"
@@ -375,6 +387,7 @@ function App() {
   const camera = useRef(),
     lock = useRef(false),
     ocrRequest = useRef(null),
+    attachmentRequest = useRef(0),
     requestId = useRef(crypto.randomUUID());
   useEffect(
     () => () => {
@@ -384,8 +397,10 @@ function App() {
   );
   useEffect(() => () => ocrRequest.current?.abort(), []);
   function reset() {
+    attachmentRequest.current++;
     ocrRequest.current?.abort();
     ocrRequest.current = null;
+    if (photo?.attachment?.key) deleteReceiptAttachment(photo.attachment.key).catch(() => {});
     setScreen('manual');
     setPhoto(null);
     setOcrMessage('');
@@ -396,17 +411,40 @@ function App() {
     requestId.current = crypto.randomUUID();
   }
   async function handlePhoto(value) {
+    const generation = ++attachmentRequest.current;
+    const previousAttachment = photo?.attachment?.key;
     ocrRequest.current?.abort();
-    setPhoto(value);
+    setPhoto({ ...value, attachment: null, uploadState: 'uploading' });
     setError('');
     const controller = new AbortController();
     ocrRequest.current = controller;
-    setOcrMessage('영수증을 읽는 중입니다…');
-    try {
-      const recognized = await recognizeReceipt(value.file, {
-        signal: controller.signal,
-      });
-      if (controller.signal.aborted) return;
+    setOcrMessage('영수증 사진을 저장하고 읽는 중입니다…');
+    const [uploadResult, recognitionResult] = await Promise.allSettled([
+      uploadReceiptAttachment(value.file, { receiptId: requestId.current }),
+      recognizeReceipt(value.file, { signal: controller.signal }),
+    ]);
+    if (generation !== attachmentRequest.current) {
+      if (uploadResult.status === 'fulfilled')
+        deleteReceiptAttachment(uploadResult.value.key).catch(() => {});
+      return;
+    }
+    if (uploadResult.status === 'fulfilled') {
+      setPhoto((current) =>
+        current?.file === value.file
+          ? { ...current, attachment: uploadResult.value, uploadState: 'saved' }
+          : current,
+      );
+      if (previousAttachment && previousAttachment !== uploadResult.value.key)
+        deleteReceiptAttachment(previousAttachment).catch(() => {});
+    } else {
+      setPhoto((current) =>
+        current?.file === value.file ? { ...current, uploadState: 'error' } : current,
+      );
+      if (previousAttachment) deleteReceiptAttachment(previousAttachment).catch(() => {});
+      setError(uploadResult.reason?.message || '영수증 사진을 서버에 저장하지 못했습니다.');
+    }
+    if (recognitionResult.status === 'fulfilled') {
+      const recognized = recognitionResult.value;
       const extracted = Object.entries(recognized).filter(([, v]) => v);
       const { location, ...coreValues } = recognized;
       setCore((current) => ({
@@ -418,23 +456,25 @@ function App() {
       if (location)
         setExtras((current) => ({ ...current, location: current.location || location }));
       setOcrMessage(
-        extracted.length
-          ? '인식된 항목을 빈 입력란에 넣었습니다.\n원본과 대조해 확인해주세요.'
-          : '읽을 수 있는 항목을 찾지 못했습니다. 이상한 값은 넣지 않았으니 직접 입력해주세요.',
+        `${
+          extracted.length
+            ? '인식된 항목을 빈 입력란에 넣었습니다.\n원본과 대조해 확인해주세요.'
+            : '읽을 수 있는 항목을 찾지 못했습니다. 이상한 값은 넣지 않았으니 직접 입력해주세요.'
+        }${uploadResult.status === 'fulfilled' ? '\n사진을 서버에 저장했습니다.' : ''}`,
       );
-    } catch (err) {
-      if (!controller.signal.aborted) {
-        setOcrMessage(
-          `영수증 판독에 실패했습니다. 사진을 확인하며 직접 입력해주세요. (${err.message})`,
-        );
-      }
+    } else if (!controller.signal.aborted) {
+      const err = recognitionResult.reason;
+      setOcrMessage(
+        `영수증 판독에 실패했습니다. 사진을 확인하며 직접 입력해주세요. (${err.message})${uploadResult.status === 'fulfilled' ? '\n사진을 서버에 저장했습니다.' : ''}`,
+      );
     }
   }
   function navigate(next) {
     if (busy) return;
     if (
       Object.values(core).some((v, i) => v && v !== Object.values(EMPTY_CORE)[i]) ||
-      Object.values(extras).some(Boolean)
+      Object.values(extras).some(Boolean) ||
+      Boolean(photo)
     ) {
       setDeleteDraft(next);
       return;
@@ -490,7 +530,31 @@ function App() {
     setBusy(true);
     setError('');
     try {
-      const receipt = await repo.create(requestId.current, core, extras);
+      let attachment = photo?.attachment || null;
+      if (photo?.file) {
+        if (!attachment)
+          attachment = await uploadReceiptAttachment(photo.file, {
+            receiptId: requestId.current,
+          });
+        attachment = await finalizeReceiptAttachment(attachment.key, {
+          receiptId: requestId.current,
+          merchantName: core.merchantName,
+          amount: core.amount,
+          receiptDate: core.receiptDate,
+        });
+        setPhoto((current) =>
+          current ? { ...current, attachment, uploadState: 'saved' } : current,
+        );
+      }
+      const receipt = await repo.create(
+        requestId.current,
+        core,
+        extras,
+        'manual',
+        0,
+        'none',
+        attachment,
+      );
       if (!receipt)
         throw new Error('저장 결과를 확인할 수 없습니다. 입력내용을 유지한 채 다시 시도해주세요.');
       setSaved(receipt);
@@ -526,11 +590,7 @@ function App() {
             <Icon name="shield" size={17} />
             관리자 접속
           </button>
-          <button
-            className="my-receipts-link"
-            disabled={busy}
-            onClick={() => navigate('history')}
-          >
+          <button className="my-receipts-link" disabled={busy} onClick={() => navigate('history')}>
             <Icon name="receipt" size={17} />
             본인 등록 내용 확인
           </button>
@@ -573,7 +633,9 @@ function App() {
                 <div>
                   <h2>영수증 사진 촬영</h2>
                   <p>
-                    <span className="photo-instruction-line">선명하게, 크게 사진을 찍어주세요.</span>
+                    <span className="photo-instruction-line">
+                      선명하게, 크게 사진을 찍어주세요.
+                    </span>
                     <span className="photo-instruction-line">
                       사진을 촬영하면 주요 정보가 입력됩니다.
                     </span>
@@ -597,7 +659,10 @@ function App() {
                 </div>
                 <ExtraFields value={extras} onChange={setExtras} />
                 <ErrorBox message={error} />
-                <button className="button primary full" disabled={busy}>
+                <button
+                  className="button primary full"
+                  disabled={busy || photo?.uploadState === 'uploading'}
+                >
                   입력 내용 확인
                 </button>
               </form>
@@ -620,7 +685,10 @@ function App() {
               <div className="notice">정보가 맞으면 등록을 진행해주세요.</div>
               <form onSubmit={register}>
                 <ErrorBox message={error} />
-                <button className="button primary full" disabled={!valid || busy}>
+                <button
+                  className="button primary full"
+                  disabled={!valid || busy || photo?.uploadState === 'uploading'}
+                >
                   {busy ? '등록 중...' : '등록하기'}
                 </button>
                 <button
@@ -640,14 +708,18 @@ function App() {
                 <Icon name="check" size={38} />
               </div>
               <h2>영수증이 등록되었습니다.</h2>
-              <p>
-                입력한 사용내역이 저장되었습니다.
-                <br />
-                영수증 원본은 별도로 보관해주세요.
+              <p>입력한 사용내역이 저장되었습니다.</p>
+              {saved.duplicateAttachmentOf ? (
+                <div className="notice warning duplicate-attachment-message">
+                  영수증 중복 여부 재확인 바람
+                </div>
+              ) : (
+                <Badge status={saved.status} />
+              )}
+              <p className="receipt-id">
+                등록번호: {saved.attachmentName || makeReceiptFileName(saved)}
               </p>
-              <Badge status={saved.status} />
-              <p className="receipt-id">등록번호: {saved.receiptId}</p>
-              {saved.suspectedDuplicate && (
+              {saved.suspectedDuplicate && !saved.duplicateAttachmentOf && (
                 <div className="notice warning">
                   비슷한 영수증이 있어 관리팀이 중복 여부를 확인합니다.
                 </div>
@@ -662,7 +734,7 @@ function App() {
                   setScreen('history');
                 }}
               >
-                처리상태 조회
+                본인 등록 내용 조회
               </button>
             </section>
           )}
@@ -802,7 +874,7 @@ function Login({ onClose, onSuccess }) {
     </Modal>
   );
 }
-function Detail({ r }) {
+function Detail({ r, onViewReceipt }) {
   return (
     <>
       <dl className="detail-grid">
@@ -820,9 +892,26 @@ function Detail({ r }) {
           ))}
       </dl>
       <p className="file-label">등록번호: {r.receiptId}</p>
-      <div className="notice">
-        직접 입력한 내용은 원본 영수증과 대조해주세요.
-      </div>
+      <section className="detail-attachment">
+        <h3>영수증 사진</h3>
+        {r.attachmentKey ? (
+          <button
+            className="detail-attachment-preview"
+            type="button"
+            onClick={() => onViewReceipt(r)}
+            aria-label="영수증 사진 크게 보기"
+          >
+            <img
+              src={receiptAttachmentUrl(r.attachmentKey)}
+              alt={`${r.merchantName || '영수증'} 사진 미리보기`}
+            />
+            <span>사진을 눌러 크게 보기</span>
+          </button>
+        ) : (
+          <p className="detail-attachment-empty">저장된 영수증 사진이 없습니다.</p>
+        )}
+      </section>
+      <div className="notice">직접 입력한 내용은 원본 영수증과 대조해주세요.</div>
       {r.suspectedDuplicate && (
         <p className="duplicate-note">중복 의심: 동일 사용처·일자·금액의 내역을 확인해주세요.</p>
       )}
@@ -836,6 +925,7 @@ function History({ onBack }) {
     [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [expanded, setExpanded] = useState(null),
+    [viewingImage, setViewingImage] = useState(null),
     [searched, setSearched] = useState(false);
   async function search(e) {
     e.preventDefault();
@@ -856,7 +946,10 @@ function History({ onBack }) {
       <div className="page-intro">
         <span className="eyebrow">직원 화면</span>
         <h1>본인 등록 내용 조회</h1>
-        <p>사용자 이름으로 현재 상태를 확인하세요. 동명이인은 사번으로 구분할 수 있습니다.</p>
+        <p>
+          이름으로 등록 내역을 조회하고, 항목을 누르면 상세 정보와 영수증 사진을 볼 수 있습니다.
+          동명이인은 사번으로 구분할 수 있습니다.
+        </p>
       </div>
       <section className="card history-card">
         <form onSubmit={search}>
@@ -887,24 +980,53 @@ function History({ onBack }) {
         {searched && rows.length === 0 && (
           <div className="empty-state">해당 등록내역이 없습니다.</div>
         )}
-        {rows.map((r) => (
-          <article className="history-row" key={r.receiptId}>
-            <button
-              className="history-open"
-              aria-expanded={expanded === r.receiptId}
-              onClick={() => setExpanded(expanded === r.receiptId ? null : r.receiptId)}
-            >
-              <div>
-                <strong>{r.merchantName || '관리팀 확인 요청'}</strong>
-                <p>
-                  {r.receiptDate || '날짜 확인필요'} · {r.employeeName} · {money(r.amount)}
-                </p>
-              </div>
-              <Badge status={r.status} />
-            </button>
-            {expanded === r.receiptId && <Detail r={r} />}
-          </article>
-        ))}
+        {rows.length > 0 && (
+          <div className="history-list" aria-label="본인 영수증 등록 목록">
+            <div className="history-list-header" aria-hidden="true">
+              <span>사용일자 · 업체명 · 사용자</span>
+              <span>사용금액</span>
+              <span>사진</span>
+              <span>처리상태</span>
+            </div>
+            {rows.map((r) => (
+              <article className="history-row" key={r.receiptId}>
+                <button
+                  className="history-open"
+                  aria-expanded={expanded === r.receiptId}
+                  onClick={() => setExpanded(expanded === r.receiptId ? null : r.receiptId)}
+                >
+                  <span className="history-primary">
+                    <small>{r.receiptDate || '날짜 확인필요'}</small>
+                    <strong>{r.merchantName || '관리팀 확인 요청'}</strong>
+                    <span className="history-meta">
+                      {r.employeeName || '사용자 확인필요'}
+                      {r.approvalNumber ? ` · 승인번호 ${r.approvalNumber}` : ''}
+                    </span>
+                  </span>
+                  <strong className="history-amount">{money(r.amount)}</strong>
+                  <span
+                    className="history-thumb"
+                    aria-label={r.attachmentKey ? '사진 첨부' : '사진 없음'}
+                  >
+                    {r.attachmentKey ? (
+                      <img src={receiptAttachmentUrl(r.attachmentKey)} alt="" loading="lazy" />
+                    ) : (
+                      <span>—</span>
+                    )}
+                  </span>
+                  <span className="history-status">
+                    <Badge status={r.status} />
+                  </span>
+                </button>
+                {expanded === r.receiptId && (
+                  <div className="history-detail">
+                    <Detail r={r} onViewReceipt={setViewingImage} />
+                  </div>
+                )}
+              </article>
+            ))}
+          </div>
+        )}
         <button
           className="button secondary full history-return-button"
           disabled={busy}
@@ -913,6 +1035,22 @@ function History({ onBack }) {
           등록 화면으로 이동 버튼
         </button>
       </section>
+      {viewingImage && (
+        <Modal title="영수증 사진" wide onClose={() => setViewingImage(null)}>
+          <img
+            className="modal-image"
+            src={receiptAttachmentUrl(viewingImage.attachmentKey)}
+            alt={`${viewingImage.merchantName || '영수증'} 원본 사진`}
+          />
+          <a
+            className="button secondary full"
+            href={receiptAttachmentUrl(viewingImage.attachmentKey)}
+            download={viewingImage.attachmentName || undefined}
+          >
+            원본 사진 다운로드
+          </a>
+        </Modal>
+      )}
     </main>
   );
 }
@@ -926,7 +1064,8 @@ function Admin({ onBack }) {
     [expanded, setExpanded] = useState(null),
     [editing, setEditing] = useState(null),
     [action, setAction] = useState(null),
-    [deleteChecked, setDeleteChecked] = useState(false);
+    [deleteChecked, setDeleteChecked] = useState(false),
+    [attachment, setAttachment] = useState(null);
   const lock = useRef(false);
   const rows = filterReceipts(all, applied);
   async function load() {
@@ -967,6 +1106,11 @@ function Admin({ onBack }) {
       setBusy(false);
     }
   }
+  async function removeReceipt(r) {
+    await repo.remove(r.receiptId, r.version);
+    if (r.attachmentKey) await deleteReceiptAttachment(r.attachmentKey).catch(() => {});
+    return null;
+  }
   function download() {
     const blob = new Blob([csv(rows)], { type: 'text/csv;charset=utf-8' }),
       url = URL.createObjectURL(blob),
@@ -985,7 +1129,7 @@ function Admin({ onBack }) {
           <p>등록내역을 확인하고 수정·삭제·처리상태를 관리하세요.</p>
         </div>
         <button className="button secondary" disabled={busy} onClick={onBack}>
-          등록화면으로
+          등록 화면으로
         </button>
       </div>
       <div className="stats">
@@ -1123,7 +1267,17 @@ function Admin({ onBack }) {
                   <span className="row-amount">{money(r.amount)}</span>
                   <span className="row-approval">{display(r, 'approvalNumber')}</span>
                 </button>
-                <small className="no-image">미보관</small>
+                {r.imageStored && r.attachmentKey ? (
+                  <button
+                    className="attachment-link"
+                    type="button"
+                    onClick={() => setAttachment(r)}
+                  >
+                    첨부 보기
+                  </button>
+                ) : (
+                  <small className="no-image">미보관</small>
+                )}
                 <div>
                   <Badge status={r.status} />
                   {r.suspectedDuplicate && <small className="duplicate-note">중복 의심</small>}
@@ -1133,7 +1287,7 @@ function Admin({ onBack }) {
                 <div className="expanded-detail static-detail">
                   <div>
                     <h3>상세내역</h3>
-                    <Detail r={r} />
+                    <Detail r={r} onViewReceipt={setAttachment} />
                     <div className="status-actions">
                       <span>처리상태 변경</span>
                       {['manual_review', 'team_review', 'completed'].includes(r.status) && (
@@ -1188,6 +1342,22 @@ function Admin({ onBack }) {
           ))}
         </div>
       </section>
+      {attachment && (
+        <Modal title="영수증 첨부 사진" wide onClose={() => setAttachment(null)}>
+          <img
+            className="modal-image"
+            src={receiptAttachmentUrl(attachment.attachmentKey)}
+            alt={`${attachment.merchantName} 영수증`}
+          />
+          <a
+            className="button secondary full"
+            href={receiptAttachmentUrl(attachment.attachmentKey)}
+            download={attachment.attachmentName || undefined}
+          >
+            원본 사진 다운로드
+          </a>
+        </Modal>
+      )}
       {editing && (
         <Modal title="영수증 수정" wide onClose={() => !busy && setEditing(null)}>
           <p className="muted">
@@ -1268,7 +1438,7 @@ function Admin({ onBack }) {
               onClick={() =>
                 mutate(() =>
                   action.kind === 'delete'
-                    ? repo.remove(action.r.receiptId, action.r.version)
+                    ? removeReceipt(action.r)
                     : repo.status(action.r.receiptId, action.r.version, 'completed'),
                 )
               }

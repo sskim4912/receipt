@@ -16,9 +16,10 @@ function json(data, status = 200) {
 }
 
 function base64Url(value) {
-  const bytes = value instanceof Uint8Array
-    ? value
-    : new TextEncoder().encode(typeof value === 'string' ? value : JSON.stringify(value));
+  const bytes =
+    value instanceof Uint8Array
+      ? value
+      : new TextEncoder().encode(typeof value === 'string' ? value : JSON.stringify(value));
   let binary = '';
   for (let i = 0; i < bytes.length; i += 0x8000)
     binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
@@ -82,7 +83,10 @@ async function getAccessToken(serviceAccountJson) {
 }
 
 function extractJson(text) {
-  const cleaned = String(text || '').trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+  const cleaned = String(text || '')
+    .trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/, '');
   const start = cleaned.indexOf('{');
   const end = cleaned.lastIndexOf('}');
   if (start < 0 || end <= start) return {};
@@ -95,7 +99,9 @@ function extractJson(text) {
 }
 
 function normalizeAmount(value) {
-  const digits = String(value || '').replaceAll(',', '').replace(/[^\d.]/g, '');
+  const digits = String(value || '')
+    .replaceAll(',', '')
+    .replace(/[^\d.]/g, '');
   const amount = Number(digits);
   return Number.isSafeInteger(amount) && amount > 0 ? String(amount) : '';
 }
@@ -116,12 +122,144 @@ function safeText(value, max = 160) {
   return typeof value === 'string' ? value.trim().slice(0, max) : '';
 }
 
+function attachmentFileName(merchantName, amount, receiptDate, mimeType) {
+  const extensions = {
+    'image/jpeg': 'jpg',
+    'image/png': 'png',
+    'image/webp': 'webp',
+    'image/tiff': 'tiff',
+  };
+  const merchant = merchantName
+    .normalize('NFKC')
+    .replace(/[\\/:*?"<>|\u0000-\u001f]/g, ' ')
+    .trim()
+    .replace(/\s+/g, '-')
+    .slice(0, 80)
+    .replace(/[. -]+$/g, '');
+  return `${merchant || '업체'}_${amount}_${receiptDate}.${extensions[mimeType]}`;
+}
+
+async function handleReceiptAttachment(request, env) {
+  if (!env.RECEIPTS_BUCKET)
+    return json({ error: 'Cloudflare Worker에 RECEIPTS_BUCKET R2 버킷을 연결해주세요.' }, 503);
+
+  if (request.method === 'POST') {
+    if (Number(request.headers.get('content-length') || 0) > MAX_IMAGE_BYTES + 64 * 1024)
+      return json({ error: '사진이 너무 큽니다. 10MB 이하 사진을 선택해주세요.' }, 413);
+    let form;
+    try {
+      form = await request.formData();
+    } catch {
+      return json({ error: '사진 첨부 요청을 읽을 수 없습니다.' }, 400);
+    }
+    const receiptId = String(form.get('receiptId') || '');
+    const merchantName = safeText(form.get('merchantName'), 160);
+    const amount = normalizeAmount(form.get('amount'));
+    const receiptDate = normalizeDate(form.get('receiptDate'));
+    const file = form.get('file');
+    if (!/^[0-9a-f-]{36}$/i.test(receiptId))
+      return json({ error: '영수증 등록번호를 확인해주세요.' }, 400);
+    if (!file || typeof file.stream !== 'function' || file.size < 1 || file.size > 10 * 1024 * 1024)
+      return json({ error: '사진은 10MB 이하로 선택해주세요.' }, 413);
+    const mimeType = String(file.type || '').toLowerCase();
+    if (!ALLOWED_MIME_TYPES.has(mimeType))
+      return json({ error: 'JPEG, PNG, WebP 또는 TIFF 사진만 저장할 수 있습니다.' }, 415);
+
+    const fileName =
+      merchantName && amount && receiptDate
+        ? attachmentFileName(merchantName, amount, receiptDate, mimeType)
+        : `receipt-${crypto.randomUUID()}.${mimeType.split('/')[1].replace('jpeg', 'jpg')}`;
+    const key = `receipts/${receiptId}/${fileName}`;
+    const fileBytes = new Uint8Array(await file.arrayBuffer());
+    const digest = await crypto.subtle.digest('SHA-256', fileBytes);
+    const sha256 = [...new Uint8Array(digest)]
+      .map((byte) => byte.toString(16).padStart(2, '0'))
+      .join('');
+    await env.RECEIPTS_BUCKET.put(key, fileBytes, {
+      httpMetadata: { contentType: mimeType },
+      customMetadata: { fileName, receiptId, sha256 },
+    });
+    return json({ key, fileName, sha256 });
+  }
+
+  if (request.method === 'PUT') {
+    let input;
+    try {
+      input = await request.json();
+    } catch {
+      return json({ error: '첨부 사진 수정 요청을 읽을 수 없습니다.' }, 400);
+    }
+    const receiptId = String(input?.receiptId || '');
+    const oldKey = String(input?.key || '');
+    const merchantName = safeText(input?.merchantName, 160);
+    const amount = normalizeAmount(input?.amount);
+    const receiptDate = normalizeDate(input?.receiptDate);
+    if (!/^[0-9a-f-]{36}$/i.test(receiptId) || !oldKey.startsWith(`receipts/${receiptId}/`))
+      return json({ error: '첨부 사진과 등록번호가 일치하지 않습니다.' }, 400);
+    if (!merchantName || !amount || !receiptDate)
+      return json({ error: '사진 파일명에 사용할 업체명, 금액, 사용일자를 확인해주세요.' }, 400);
+    if (!/^receipts\/[0-9a-f-]{36}\/[\p{L}\p{N}._ -]{1,140}\.(jpg|png|webp|tiff)$/iu.test(oldKey))
+      return json({ error: '첨부 사진 경로를 확인해주세요.' }, 400);
+    const object = await env.RECEIPTS_BUCKET.get(oldKey);
+    if (!object)
+      return json({ error: '첨부 사진을 찾을 수 없습니다. 사진을 다시 촬영해주세요.' }, 404);
+    const mimeType = object.httpMetadata?.contentType || 'image/jpeg';
+    const fileName = attachmentFileName(merchantName, amount, receiptDate, mimeType);
+    const key = `receipts/${receiptId}/${fileName}`;
+    const bytes = new Uint8Array(await object.arrayBuffer());
+    await env.RECEIPTS_BUCKET.put(key, bytes, {
+      httpMetadata: object.httpMetadata,
+      customMetadata: {
+        ...object.customMetadata,
+        fileName,
+        receiptId,
+      },
+    });
+    if (key !== oldKey) await env.RECEIPTS_BUCKET.delete(oldKey);
+    return json({ key, fileName, sha256: object.customMetadata?.sha256 || '' });
+  }
+
+  if (request.method === 'GET') {
+    const key = new URL(request.url).searchParams.get('key') || '';
+    if (!/^receipts\/[0-9a-f-]{36}\/[\p{L}\p{N}._ -]{1,140}\.(jpg|png|webp|tiff)$/iu.test(key))
+      return json({ error: '첨부 사진 경로를 확인해주세요.' }, 400);
+    const object = await env.RECEIPTS_BUCKET.get(key);
+    if (!object) return json({ error: '첨부 사진을 찾을 수 없습니다.' }, 404);
+    const fileName = object.customMetadata?.fileName || key.split('/').at(-1);
+    return new Response(object.body, {
+      headers: {
+        'Content-Type': object.httpMetadata?.contentType || 'application/octet-stream',
+        'Content-Disposition': `inline; filename*=UTF-8''${encodeURIComponent(fileName)}`,
+        'Cache-Control': 'private, no-store',
+        'X-Content-Type-Options': 'nosniff',
+      },
+    });
+  }
+
+  if (request.method === 'DELETE') {
+    let input;
+    try {
+      input = await request.json();
+    } catch {
+      return json({ error: '첨부 사진 삭제 요청을 읽을 수 없습니다.' }, 400);
+    }
+    const key = String(input?.key || '');
+    if (!/^receipts\/[0-9a-f-]{36}\/[\p{L}\p{N}._ -]{1,140}\.(jpg|png|webp|tiff)$/iu.test(key))
+      return json({ error: '첨부 사진 경로를 확인해주세요.' }, 400);
+    await env.RECEIPTS_BUCKET.delete(key);
+    return json({ deleted: true });
+  }
+  return json({ error: '지원하지 않는 요청입니다.' }, 405);
+}
+
 async function callGoogleVision(token, content) {
   const response = await fetch('https://vision.googleapis.com/v1/images:annotate', {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      requests: [{ image: { content }, features: [{ type: 'DOCUMENT_TEXT_DETECTION', maxResults: 1 }] }],
+      requests: [
+        { image: { content }, features: [{ type: 'DOCUMENT_TEXT_DETECTION', maxResults: 1 }] },
+      ],
     }),
   });
   const payload = await response.json().catch(() => ({}));
@@ -179,12 +317,15 @@ async function classifyReceipt(token, env, ocrText) {
     // Keep a short upstream response excerpt for actionable provider errors.
   }
   if (!response.ok) {
-    const detail = String(payload.error?.message || responseText || '').replace(/\s+/g, ' ').slice(0, 400);
+    const detail = String(payload.error?.message || responseText || '')
+      .replace(/\s+/g, ' ')
+      .slice(0, 400);
     throw new Error(
       `Vertex AI ${model} (${location}) 요청 실패 (HTTP ${response.status})${detail ? `: ${detail}` : '.'}`,
     );
   }
-  const text = payload.candidates?.[0]?.content?.parts?.map((part) => part.text || '').join('') || '';
+  const text =
+    payload.candidates?.[0]?.content?.parts?.map((part) => part.text || '').join('') || '';
   return extractJson(text);
 }
 
@@ -192,7 +333,8 @@ async function processReceipt(request, env) {
   if (request.method !== 'POST') return json({ error: 'POST 요청만 허용됩니다.' }, 405);
 
   const project = String(env.GOOGLE_CLOUD_PROJECT_ID || '');
-  const serviceAccountJson = env.GOOGLE_SERVICE_ACCOUNT_JSON || env.DOCUMENT_AI_SERVICE_ACCOUNT_JSON;
+  const serviceAccountJson =
+    env.GOOGLE_SERVICE_ACCOUNT_JSON || env.DOCUMENT_AI_SERVICE_ACCOUNT_JSON;
   const missing = [
     ...(!project ? ['GOOGLE_CLOUD_PROJECT_ID'] : []),
     ...(!serviceAccountJson ? ['GOOGLE_SERVICE_ACCOUNT_JSON (Secret)'] : []),
@@ -242,6 +384,7 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (url.pathname === '/api/receipt-ocr') return processReceipt(request, env);
+    if (url.pathname === '/api/receipt-attachments') return handleReceiptAttachment(request, env);
     return env.ASSETS.fetch(request);
   },
 };
