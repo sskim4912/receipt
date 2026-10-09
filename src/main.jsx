@@ -880,7 +880,7 @@ function History({ onBack }) {
             />
           </label>
           <button className="button primary full" disabled={busy}>
-            {busy ? '조회 중...' : '조회'}
+            {busy ? '조회 중...' : '조회 버튼'}
           </button>
         </form>
         <ErrorBox message={error} />
@@ -905,8 +905,12 @@ function History({ onBack }) {
             {expanded === r.receiptId && <Detail r={r} />}
           </article>
         ))}
-        <button className="button text full" disabled={busy} onClick={onBack}>
-          등록 화면으로
+        <button
+          className="button secondary full history-return-button"
+          disabled={busy}
+          onClick={onBack}
+        >
+          등록 화면으로 이동 버튼
         </button>
       </section>
     </main>
