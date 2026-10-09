@@ -33,6 +33,10 @@ function Badge({ status }) {
     </span>
   );
 }
+function formatAmountInput(value) {
+  const digits = String(value || '').replace(/\D/g, '');
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
 function Summary({ core, extras }) {
   return (
     <dl className="core-summary">
@@ -53,7 +57,24 @@ function Summary({ core, extras }) {
   );
 }
 function CoreFields({ value, onChange, team = false, simple = false }) {
+  const amountInput = useRef(null);
   const set = (k, v) => onChange({ ...value, [k]: v });
+  function setFormattedAmount(input) {
+    const cursor = input.selectionStart ?? input.value.length;
+    const digitsBeforeCursor = input.value.slice(0, cursor).replace(/\D/g, '').length;
+    const digits = input.value.replace(/\D/g, '');
+    const formatted = formatAmountInput(digits);
+    set('amount', digits);
+    requestAnimationFrame(() => {
+      let position = 0;
+      let digitCount = 0;
+      while (position < formatted.length && digitCount < digitsBeforeCursor) {
+        if (/\d/.test(formatted[position])) digitCount += 1;
+        position += 1;
+      }
+      amountInput.current?.setSelectionRange(position, position);
+    });
+  }
   const keys = simple
     ? ['merchantName', 'amount', 'receiptDate']
     : ['merchantName', 'businessNumber', 'receiptDate', 'amount', 'approvalNumber'];
@@ -81,10 +102,11 @@ function CoreFields({ value, onChange, team = false, simple = false }) {
             }
           >
             <input
+              ref={k === 'amount' ? amountInput : undefined}
               aria-label={k === 'approvalNumber' ? '승인번호' : LABELS[k]}
               type={k === 'receiptDate' ? 'date' : 'text'}
               inputMode={['amount', 'approvalNumber'].includes(k) ? 'numeric' : undefined}
-              value={value[k]}
+              value={k === 'amount' ? formatAmountInput(value[k]) : value[k]}
               required={
                 !team &&
                 (simple
@@ -96,7 +118,7 @@ function CoreFields({ value, onChange, team = false, simple = false }) {
                 (team ? value.approvalState !== 'present' : value.approvalState === 'absent')
               }
               maxLength={k === 'merchantName' ? 160 : k === 'approvalNumber' ? 40 : undefined}
-              pattern={k === 'amount' ? '[0-9]+' : undefined}
+              pattern={k === 'amount' ? '[0-9,]+' : undefined}
               placeholder={k === 'amount' ? '총 승인 금액·영수금액·결제금액·매출합계' : undefined}
               onChange={(e) => {
                 const next = e.target.value;
@@ -106,6 +128,7 @@ function CoreFields({ value, onChange, team = false, simple = false }) {
                     approvalNumber: next,
                     approvalState: next ? 'present' : 'unreadable',
                   });
+                else if (k === 'amount') setFormattedAmount(e.currentTarget);
                 else set(k, next);
               }}
             />
