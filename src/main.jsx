@@ -1242,6 +1242,9 @@ function Admin({ onBack }) {
     [downloadingPhotos, setDownloadingPhotos] = useState(false);
   const lock = useRef(false);
   const rows = filterReceipts(all, applied);
+  const selectedPhotoCount = rows.filter(
+    (r) => selectedPhotoIds.includes(r.receiptId) && r.imageStored && r.attachmentKey,
+  ).length;
   async function load() {
     if (lock.current) return;
     lock.current = true;
@@ -1317,7 +1320,11 @@ function Admin({ onBack }) {
     const selected = all.filter(
       (r) => selectedPhotoIds.includes(r.receiptId) && r.imageStored && r.attachmentKey,
     );
-    if (!selected.length || downloadingPhotos) return;
+    if (downloadingPhotos) return;
+    if (!selected.length) {
+      setError('선택한 등록내역에 저장된 사진이 없습니다.');
+      return;
+    }
     if (selected.length > 100) {
       setError('사진은 한 번에 100장까지 저장할 수 있습니다. 검색 조건을 나눠서 다시 선택해주세요.');
       return;
@@ -1490,11 +1497,11 @@ function Admin({ onBack }) {
           <div className="list-tools">
             <button
               className="button secondary small"
-              disabled={busy || downloadingPhotos || selectedPhotoIds.length === 0}
+              disabled={busy || downloadingPhotos || selectedPhotoCount === 0}
               onClick={downloadSelectedPhotos}
             >
               <Icon name="download" size={16} />
-              {downloadingPhotos ? '사진 묶는 중...' : `선택 사진 다운로드${selectedPhotoIds.length ? ` (${selectedPhotoIds.length})` : ''}`}
+              {downloadingPhotos ? '사진 묶는 중...' : `선택 사진 다운로드${selectedPhotoCount ? ` (${selectedPhotoCount})` : ''}`}
             </button>
             <button
               className="button danger-outline small"
@@ -1534,15 +1541,12 @@ function Admin({ onBack }) {
               <input
                 aria-label="현재 목록 사진 전체 선택"
                 type="checkbox"
-                checked={
-                  rows.some((r) => r.imageStored && r.attachmentKey) &&
-                  rows.filter((r) => r.imageStored && r.attachmentKey).every((r) => selectedPhotoIds.includes(r.receiptId))
-                }
-                disabled={busy || downloadingPhotos || !rows.some((r) => r.imageStored && r.attachmentKey)}
+                checked={rows.length > 0 && rows.every((r) => selectedPhotoIds.includes(r.receiptId))}
+                disabled={busy || downloadingPhotos || rows.length === 0}
                 onChange={(e) =>
                   setSelectedPhotoIds(
                     e.target.checked
-                      ? rows.filter((r) => r.imageStored && r.attachmentKey).map((r) => r.receiptId)
+                      ? rows.map((r) => r.receiptId)
                       : [],
                   )
                 }
@@ -1591,7 +1595,7 @@ function Admin({ onBack }) {
                     aria-label={`${r.merchantName || '영수증'} 사진 저장 선택`}
                     type="checkbox"
                     checked={selectedPhotoIds.includes(r.receiptId)}
-                    disabled={busy || downloadingPhotos || !r.imageStored || !r.attachmentKey}
+                    disabled={busy || downloadingPhotos}
                     onChange={(e) =>
                       setSelectedPhotoIds((ids) =>
                         e.target.checked
