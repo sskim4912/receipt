@@ -1,6 +1,6 @@
 import { z } from 'zod';
 export const STATUSES = {
-  manual_review: '수기입력·확인필요',
+  manual_review: '확인필요',
   team_review: '관리팀 확인필요',
   pending: '미처리',
   completed: '처리완료',

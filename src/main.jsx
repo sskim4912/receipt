@@ -1424,7 +1424,11 @@ function Admin({ onBack }) {
                   </small>
                 )}
                 <div className="admin-status-cell">
-                  <Badge status={r.status} />
+                  <Badge
+                    status={r.status}
+                    inputSource={r.inputSource}
+                    showInputSource
+                  />
                   {r.suspectedDuplicate && <small className="duplicate-note">중복 의심</small>}
                 </div>
                 <div className="voucher-cell">
