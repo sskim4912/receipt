@@ -647,7 +647,7 @@ function App() {
         <main className="registration">
           <h2 className="process-title">처리 절차</h2>
           <ol className="steps" aria-label="등록 단계">
-            {['영수증 사진 촬영', '필수 입력 요청 사항', '입력 확인 및 전송'].map((s, i) => (
+            {['영수증 사진 촬영', '필수 입력 요청 사항', '입력 내용 확인'].map((s, i) => (
               <li
                 key={s}
                 className={i === step ? 'active' : i < step ? 'complete' : ''}
@@ -692,11 +692,17 @@ function App() {
                 </div>
                 <ExtraFields value={extras} onChange={setExtras} />
                 <ErrorBox message={error} />
+                <div className="section-heading section-heading-required">
+                  <span className="section-number">3</span>
+                  <div>
+                    <h2>입력 내용 확인</h2>
+                  </div>
+                </div>
                 <button
                   className="button primary full"
                   disabled={busy || photo?.uploadState === 'uploading'}
                 >
-                  ③ 입력 내용 확인 버튼
+                  입력 내용 확인
                 </button>
               </form>
             </section>
