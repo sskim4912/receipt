@@ -855,7 +855,7 @@ function History({ onBack }) {
     <main className="registration">
       <div className="page-intro">
         <span className="eyebrow">직원 화면</span>
-        <h1>처리상태 조회</h1>
+        <h1>본인 등록 내용 조회</h1>
         <p>사용자 이름으로 현재 상태를 확인하세요. 동명이인은 사번으로 구분할 수 있습니다.</p>
       </div>
       <section className="card history-card">
@@ -906,7 +906,7 @@ function History({ onBack }) {
           </article>
         ))}
         <button className="button text full" disabled={busy} onClick={onBack}>
-          등록화면으로
+          등록 화면으로
         </button>
       </section>
     </main>
