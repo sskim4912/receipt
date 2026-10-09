@@ -126,16 +126,19 @@ fieldset {
   background: none;
   border: 0;
   color: #243b55;
-  font-size: 13px;
-  font-weight: 750;
+  font-size: 15px;
+  font-weight: 800;
   padding: 10px;
 }
 .my-receipts-link {
+  display: flex;
+  align-items: center;
+  gap: 7px;
   background: none;
   border: 0;
   color: #243b55;
-  font-size: 12px;
-  font-weight: 750;
+  font-size: 15px;
+  font-weight: 800;
   padding: 4px 10px 8px;
 }
 .registration {
@@ -1085,12 +1088,18 @@ footer span {
     height: 44px;
   }
   .admin-link {
-    font-size: 11px;
+    font-size: 12px;
     gap: 4px;
     padding: 7px 0;
   }
-  .admin-link svg {
-    width: 13px;
+  .my-receipts-link {
+    font-size: 12px;
+    gap: 4px;
+    padding: 4px 0 7px;
+  }
+  .header-actions svg {
+    width: 15px;
+    height: 15px;
   }
   .registration {
     padding: 30px 12px 15px;

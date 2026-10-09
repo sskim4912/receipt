@@ -532,6 +532,7 @@ function App() {
             disabled={busy}
             onClick={() => navigate('history')}
           >
+            <Icon name="receipt" size={17} />
             본인 등록 내용 확인
           </button>
         </div>
