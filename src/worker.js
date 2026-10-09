@@ -107,6 +107,11 @@ function normalizeDate(value) {
   return Number.isNaN(parsed.valueOf()) || parsed.toISOString().slice(0, 10) !== date ? '' : date;
 }
 
+function normalizeTime(value) {
+  const match = String(value || '').match(/^([01]\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?$/);
+  return match ? `${match[1]}:${match[2]}` : '';
+}
+
 function safeText(value, max = 160) {
   return typeof value === 'string' ? value.trim().slice(0, max) : '';
 }
@@ -225,7 +230,7 @@ async function processReceipt(request, env) {
       merchantName: safeText(aiValues.merchantName) || fallback.merchantName,
       amount: normalizeAmount(aiValues.amount) || fallback.amount,
       receiptDate: normalizeDate(aiValues.receiptDate) || fallback.receiptDate,
-      receiptTime: safeText(aiValues.receiptTime, 8),
+      receiptTime: normalizeTime(aiValues.receiptTime),
       location: safeText(aiValues.location) || fallback.location,
     });
   } catch (error) {

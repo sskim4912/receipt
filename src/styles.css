@@ -23,19 +23,14 @@ html,
 body,
 #root {
   width: 100%;
+  min-width: 0;
   max-width: 100%;
-  overflow-x: clip;
+  overflow-x: hidden;
 }
 html,
 body {
+  min-width: 0;
   overscroll-behavior-x: none;
-}
-@supports not (overflow-x: clip) {
-  html,
-  body,
-  #root {
-    overflow-x: hidden;
-  }
 }
 body {
   margin: 0;
@@ -144,6 +139,8 @@ fieldset {
   padding: 10px;
 }
 .registration {
+  width: 100%;
+  min-width: 0;
   max-width: 890px;
   margin: 0 auto;
   padding: 45px 24px 30px;
@@ -1060,7 +1057,7 @@ footer span {
     width: 13px;
   }
   .registration {
-    padding: 30px 16px 15px;
+    padding: 30px 12px 15px;
   }
   .page-intro h1 {
     font-size: 29px;
@@ -1122,7 +1119,8 @@ footer span {
     gap: 10px;
   }
   .card {
-    padding: 22px;
+    min-width: 0;
+    padding: 18px 14px;
     border-radius: 12px;
   }
   .section-heading {
@@ -1293,7 +1291,10 @@ footer span {
     padding: 7px 14px;
   }
   footer {
-    padding: 22px;
+    width: 100%;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    padding: 18px 12px;
     font-size: 10px;
   }
 }

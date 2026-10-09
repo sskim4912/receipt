@@ -439,6 +439,15 @@ function App() {
     validateInput(core, extras);
     valid = true;
   } catch {}
+  const requiredFieldsFilled = Boolean(
+    core.merchantName.trim() &&
+      core.amount.trim() &&
+      core.receiptDate &&
+      extras.employeeName.trim() &&
+      extras.attendeeCount.trim() &&
+      extras.purpose.trim() &&
+      extras.location.trim(),
+  );
   async function register(e) {
     e.preventDefault();
     if (lock.current || !valid) return;
@@ -543,7 +552,7 @@ function App() {
                 <CoreFields value={core} onChange={setCore} simple />
                 <ExtraFields value={extras} onChange={setExtras} />
                 <ErrorBox message={error} />
-                <button className="button primary full" disabled={!valid || busy}>
+                <button className="button primary full" disabled={!requiredFieldsFilled || busy}>
                   입력내용 확인
                 </button>
               </form>
