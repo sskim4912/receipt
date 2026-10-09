@@ -696,7 +696,7 @@ function App() {
                   className="button primary full"
                   disabled={busy || photo?.uploadState === 'uploading'}
                 >
-                  입력 내용 확인
+                  ③ 입력 내용 확인 버튼
                 </button>
               </form>
             </section>
