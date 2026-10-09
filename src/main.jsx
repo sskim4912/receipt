@@ -96,9 +96,7 @@ function CoreFields({ value, onChange, team = false, simple = false }) {
                 ? '영수증에 없으면 비워두세요.'
                 : k === 'approvalNumber'
                   ? '자동 인식되며, 읽히지 않아도 등록 가능합니다.'
-                  : k === 'receiptDate'
-                    ? '법인카드 내역과 대조할 때 사용합니다.'
-                    : undefined
+                  : undefined
             }
           >
             <input
