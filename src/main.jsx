@@ -709,9 +709,9 @@ function App() {
               </div>
               <h2>영수증이 등록되었습니다.</h2>
               <p>입력한 사용내역이 저장되었습니다.</p>
-              {saved.duplicateAttachmentOf ? (
+              {saved.duplicateAttachmentOf || saved.suspectedDuplicate ? (
                 <div className="notice warning duplicate-attachment-message">
-                  영수증 중복 여부 재확인 바람
+                  중복 내용 의심, 확인 요망
                 </div>
               ) : (
                 <Badge status={saved.status} />
@@ -719,11 +719,6 @@ function App() {
               <p className="receipt-id">
                 등록번호: {saved.attachmentName || makeReceiptFileName(saved)}
               </p>
-              {saved.suspectedDuplicate && !saved.duplicateAttachmentOf && (
-                <div className="notice warning">
-                  비슷한 영수증이 있어 관리팀이 중복 여부를 확인합니다.
-                </div>
-              )}
               <button className="button primary" onClick={reset}>
                 새 영수증 등록
               </button>
