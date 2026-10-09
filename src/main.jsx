@@ -869,26 +869,42 @@ function Login({ onClose, onSuccess }) {
     </Modal>
   );
 }
-function Detail({ r, onViewReceipt }) {
+function Detail({ r, onViewReceipt, employeeView = false }) {
+  const employeeFields = [
+    ['receiptDate', '사용일자', [r.receiptDate, r.receiptTime].filter(Boolean).join(' ') || '—'],
+    ['merchantName', '업체명', display(r, 'merchantName') || '—'],
+    ['amount', '사용금액', money(r.amount)],
+    ['approvalNumber', '승인번호', display(r, 'approvalNumber') || '—'],
+    ['employeeName', '사용자', display(r, 'employeeName') || '—'],
+    ['attendeeCount', '참석 인원수', display(r, 'attendeeCount') || '—'],
+    ['purpose', '사용 목적', display(r, 'purpose') || '—'],
+    ['location', '사용 장소', display(r, 'location') || '—'],
+    ['createdAt', '등록일시', display(r, 'createdAt') || '—'],
+  ];
   return (
     <>
-      <dl className="detail-grid">
-        {Object.keys(LABELS)
-          .filter((k) => k !== 'receiptTime')
-          .map((k) => (
-            <div key={k}>
-              <dt>{LABELS[k]}</dt>
-              <dd>
-                {k === 'receiptDate'
+      <dl className={`detail-grid ${employeeView ? 'employee-detail-grid' : ''}`}>
+        {(employeeView
+          ? employeeFields
+          : Object.keys(LABELS)
+              .filter((k) => k !== 'receiptTime')
+              .map((k) => [
+                k,
+                LABELS[k],
+                k === 'receiptDate'
                   ? [r.receiptDate, r.receiptTime].filter(Boolean).join(' ') || '—'
-                  : display(r, k) || '—'}
-              </dd>
-            </div>
-          ))}
+                  : display(r, k) || '—',
+              ])
+        ).map(([key, label, value]) => (
+          <div key={key}>
+            <dt>{label}</dt>
+            <dd>{value}</dd>
+          </div>
+        ))}
       </dl>
-      <p className="file-label">등록번호: {r.receiptId}</p>
+      {!employeeView && <p className="file-label">등록번호: {r.receiptId}</p>}
       <section className="detail-attachment">
-        <h3>영수증 사진</h3>
+        <h3>{employeeView ? '첨부 사진' : '영수증 사진'}</h3>
         {r.attachmentKey ? (
           <button
             className="detail-attachment-preview"
@@ -900,14 +916,16 @@ function Detail({ r, onViewReceipt }) {
               src={receiptAttachmentUrl(r.attachmentKey)}
               alt={`${r.merchantName || '영수증'} 사진 미리보기`}
             />
-            <span>사진을 눌러 크게 보기</span>
+            <span>썸네일을 눌러 크게 보기</span>
           </button>
         ) : (
           <p className="detail-attachment-empty">저장된 영수증 사진이 없습니다.</p>
         )}
       </section>
-      <div className="notice">직접 입력한 내용은 원본 영수증과 대조해주세요.</div>
-      {r.suspectedDuplicate && (
+      {!employeeView && (
+        <div className="notice">직접 입력한 내용은 원본 영수증과 대조해주세요.</div>
+      )}
+      {!employeeView && r.suspectedDuplicate && (
         <p className="duplicate-note">중복 의심: 동일 사용처·일자·금액의 내역을 확인해주세요.</p>
       )}
     </>
@@ -985,37 +1003,43 @@ function History({ onBack }) {
             </div>
             {rows.map((r) => (
               <article className="history-row" key={r.receiptId}>
-                <button
-                  className="history-open"
-                  aria-expanded={expanded === r.receiptId}
-                  onClick={() => setExpanded(expanded === r.receiptId ? null : r.receiptId)}
-                >
-                  <span className="history-primary">
-                    <small>{r.receiptDate || '날짜 확인필요'}</small>
-                    <strong>{r.merchantName || '관리팀 확인 요청'}</strong>
-                    <span className="history-meta">
-                      {r.employeeName || '사용자 확인필요'}
-                      {r.approvalNumber ? ` · 승인번호 ${r.approvalNumber}` : ''}
-                    </span>
-                  </span>
-                  <strong className="history-amount">{money(r.amount)}</strong>
-                  <span
-                    className="history-thumb"
-                    aria-label={r.attachmentKey ? '사진 첨부' : '사진 없음'}
+                <div className="history-row-line">
+                  <button
+                    className="history-open"
+                    aria-expanded={expanded === r.receiptId}
+                    onClick={() => setExpanded(expanded === r.receiptId ? null : r.receiptId)}
                   >
-                    {r.attachmentKey ? (
+                    <span className="history-primary">
+                      <small>{r.receiptDate || '날짜 확인필요'}</small>
+                      <strong>{r.merchantName || '관리팀 확인 요청'}</strong>
+                      <span className="history-meta">
+                        {r.employeeName || '사용자 확인필요'}
+                        {r.approvalNumber ? ` · 승인번호 ${r.approvalNumber}` : ''}
+                      </span>
+                    </span>
+                  </button>
+                  <strong className="history-amount">{money(r.amount)}</strong>
+                  {r.attachmentKey ? (
+                    <button
+                      className="history-thumb-button"
+                      type="button"
+                      onClick={() => setViewingImage(r)}
+                      aria-label={`${r.merchantName || '영수증'} 사진 크게 보기`}
+                    >
                       <img src={receiptAttachmentUrl(r.attachmentKey)} alt="" loading="lazy" />
-                    ) : (
-                      <span>—</span>
-                    )}
-                  </span>
+                    </button>
+                  ) : (
+                    <span className="history-thumb" aria-label="사진 없음">
+                      —
+                    </span>
+                  )}
                   <span className="history-status">
                     <Badge status={r.status} />
                   </span>
-                </button>
+                </div>
                 {expanded === r.receiptId && (
                   <div className="history-detail">
-                    <Detail r={r} onViewReceipt={setViewingImage} />
+                    <Detail r={r} onViewReceipt={setViewingImage} employeeView />
                   </div>
                 )}
               </article>
@@ -1031,22 +1055,39 @@ function History({ onBack }) {
         </button>
       </section>
       {viewingImage && (
-        <Modal title="영수증 사진" wide onClose={() => setViewingImage(null)}>
-          <img
-            className="modal-image"
-            src={receiptAttachmentUrl(viewingImage.attachmentKey)}
-            alt={`${viewingImage.merchantName || '영수증'} 원본 사진`}
-          />
-          <a
-            className="button secondary full"
-            href={receiptAttachmentUrl(viewingImage.attachmentKey)}
-            download={viewingImage.attachmentName || undefined}
-          >
-            원본 사진 다운로드
-          </a>
-        </Modal>
+        <ReceiptImageViewer receipt={viewingImage} onClose={() => setViewingImage(null)} />
       )}
     </main>
+  );
+}
+function ReceiptImageViewer({ receipt, onClose }) {
+  useEffect(() => {
+    const closeOnEscape = (event) => event.key === 'Escape' && onClose();
+    document.addEventListener('keydown', closeOnEscape);
+    return () => document.removeEventListener('keydown', closeOnEscape);
+  }, [onClose]);
+  return (
+    <div
+      className="receipt-image-viewer"
+      role="dialog"
+      aria-modal="true"
+      aria-label="영수증 첨부 사진 확대 보기"
+      onClick={onClose}
+    >
+      <button
+        className="receipt-image-close"
+        type="button"
+        onClick={onClose}
+        aria-label="사진 닫기"
+      >
+        ×
+      </button>
+      <img
+        src={receiptAttachmentUrl(receipt.attachmentKey)}
+        alt={`${receipt.merchantName || '영수증'} 첨부 사진`}
+        onClick={onClose}
+      />
+    </div>
   );
 }
 function Admin({ onBack }) {
