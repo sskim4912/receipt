@@ -574,9 +574,10 @@ function App() {
                 <div>
                   <h2>영수증 사진 촬영</h2>
                   <p>
-                    선명하게, 크게 사진을 찍어주세요.
-                    <br />
-                    사진을 촬영하면 주요 정보가 입력됩니다.
+                    <span className="photo-instruction-line">선명하게, 크게 사진을 찍어주세요.</span>
+                    <span className="photo-instruction-line">
+                      사진을 촬영하면 주요 정보가 입력됩니다.
+                    </span>
                   </p>
                 </div>
               </div>
