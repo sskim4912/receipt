@@ -30,6 +30,7 @@ export const LABELS = {
   registrationMethod: '등록방식',
   inputSource: '입력방식',
   voucherStatus: '전표 처리',
+  attachmentName: '사진자료(파일명)',
   status: '처리상태',
   createdAt: '등록일시',
   updatedAt: '수정일시',
@@ -212,6 +213,7 @@ const csvFields = [
   'registrationMethod',
   'status',
   'voucherStatus',
+  'attachmentName',
   'createdAt',
   'updatedAt',
 ];
@@ -233,6 +235,10 @@ export function csv(rows) {
                 ? [r.receiptDate, r.receiptTime].filter(Boolean).join(' ')
                 : ['status', 'registrationMethod'].includes(k)
                   ? display(r, k)
+                  : k === 'attachmentName'
+                    ? r.imageStored && r.attachmentKey
+                      ? r.attachmentName || '파일명 확인필요'
+                      : '사진 없음'
                   : r[k],
             ),
           )
