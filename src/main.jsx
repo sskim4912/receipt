@@ -396,6 +396,7 @@ function App() {
   const camera = useRef(),
     lock = useRef(false),
     ocrRequest = useRef(null),
+    coreEditVersion = useRef(0),
     attachmentRequest = useRef(0),
     requestId = useRef(crypto.randomUUID());
   useEffect(
@@ -422,6 +423,10 @@ function App() {
   }
   async function handlePhoto(value) {
     const generation = ++attachmentRequest.current;
+    const coreEditVersionAtStart = coreEditVersion.current;
+    const coreWasEmptyAtStart = ['merchantName', 'amount', 'receiptDate'].every(
+      (key) => !String(core[key] || '').trim(),
+    );
     const previousAttachment = photo?.attachment?.key;
     ocrRequest.current?.abort();
     setPhoto({ ...value, attachment: null, uploadState: 'uploading' });
@@ -457,7 +462,13 @@ function App() {
     if (recognitionResult.status === 'fulfilled') {
       const recognized = recognitionResult.value;
       const extracted = Object.entries(recognized).filter(([, v]) => v);
-      if (recognized.merchantName && recognized.amount && recognized.receiptDate)
+      if (
+        recognized.merchantName &&
+        recognized.amount &&
+        recognized.receiptDate &&
+        coreWasEmptyAtStart &&
+        coreEditVersion.current === coreEditVersionAtStart
+      )
         setInputSource('ocr');
       const { location, ...coreValues } = recognized;
       setCore((current) => ({
@@ -494,6 +505,14 @@ function App() {
     }
     setScreen(next);
     setError('');
+  }
+  function updateCore(next) {
+    const recognitionFields = ['merchantName', 'amount', 'receiptDate'];
+    if (recognitionFields.some((key) => next[key] !== core[key])) {
+      coreEditVersion.current++;
+      setInputSource('manual');
+    }
+    setCore(next);
   }
   function focusEntryField(name) {
     if (!name) return;
@@ -664,7 +683,7 @@ function App() {
                   onError={setError}
                   ocrMessage={ocrMessage}
                 />
-                <CoreFields value={core} onChange={setCore} simple />
+                <CoreFields value={core} onChange={updateCore} simple />
                 <div className="section-heading section-heading-required">
                   <span className="section-number">2</span>
                   <div>
