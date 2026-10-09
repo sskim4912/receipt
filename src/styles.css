@@ -924,7 +924,7 @@ footer {
 }
 .table-head {
   display: grid;
-  grid-template-columns: 1fr 0.8fr 1.4fr 1fr 1fr 0.5fr 1.5fr 0.8fr;
+  grid-template-columns: 1fr 0.8fr 1.4fr 1fr 1fr 0.5fr 1.5fr 0.8fr 0.8fr;
   gap: 12px;
   padding: 13px 24px;
   background: #f7f9fc;
@@ -935,7 +935,7 @@ footer {
 }
 .table-row {
   display: grid;
-  grid-template-columns: 5.2fr 0.5fr 1.5fr 0.8fr;
+  grid-template-columns: 5.2fr 0.5fr 1.5fr 0.8fr 0.8fr;
   gap: 12px;
   align-items: center;
   padding: 16px 24px;
@@ -990,6 +990,40 @@ footer {
 .voucher-select:focus {
   outline: 3px solid #e8f1fa;
   border-color: #73a5d3;
+}
+.delete-column-head,
+.delete-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-width: 0;
+}
+.delete-column-head input,
+.delete-cell input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: #1c5ca0;
+  flex: 0 0 auto;
+}
+.row-delete-button {
+  min-height: 32px;
+  padding: 5px 8px;
+  border: 1px solid #e5b8b8;
+  border-radius: 7px;
+  color: #a53c3c;
+  background: #fff;
+  font-size: 11px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.row-delete-button:hover:not(:disabled) {
+  background: #fff5f5;
+}
+.row-delete-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 .row-amount {
   font-weight: 700;
@@ -1104,7 +1138,7 @@ footer {
     display: none;
   }
   .table-row {
-    grid-template-columns: minmax(0, 1fr) 72px 112px 74px;
+    grid-template-columns: minmax(0, 1fr) 56px 104px 68px 76px;
     gap: 8px;
     padding: 16px 12px;
   }
@@ -1147,6 +1181,15 @@ footer {
     max-width: 100%;
     height: 32px;
     font-size: 12px;
+  }
+  .delete-cell {
+    flex-direction: column;
+    gap: 5px;
+  }
+  .row-delete-button {
+    min-height: 28px;
+    padding: 4px 6px;
+    font-size: 10px;
   }
   .expanded-detail {
     grid-template-columns: 1fr 160px;
@@ -1372,7 +1415,7 @@ footer {
     padding: 7px 9px;
   }
   .table-row {
-    grid-template-columns: minmax(0, 1fr) 86px;
+    grid-template-columns: minmax(0, 1fr) 58px 62px;
     gap: 8px;
     padding: 15px 12px;
   }
@@ -1394,6 +1437,10 @@ footer {
   .table-row > .voucher-cell {
     grid-column: 2;
     grid-row: 3;
+  }
+  .table-row > .delete-cell {
+    grid-column: 3;
+    grid-row: 1 / span 3;
   }
   .row-open {
     font-size: 11px;

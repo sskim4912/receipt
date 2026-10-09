@@ -1160,7 +1160,8 @@ function Admin({ onBack }) {
     [editing, setEditing] = useState(null),
     [action, setAction] = useState(null),
     [deleteChecked, setDeleteChecked] = useState(false),
-    [attachment, setAttachment] = useState(null);
+    [attachment, setAttachment] = useState(null),
+    [selectedIds, setSelectedIds] = useState([]);
   const lock = useRef(false);
   const rows = filterReceipts(all, applied);
   async function load() {
@@ -1170,6 +1171,7 @@ function Admin({ onBack }) {
     setError('');
     try {
       setAll(await repo.list());
+      setSelectedIds([]);
     } catch (e) {
       setError(inputError(e));
     } finally {
@@ -1187,7 +1189,10 @@ function Admin({ onBack }) {
     setError('');
     try {
       const result = await fn();
-      if (result)
+      if (result?.deletedIds) {
+        setAll((list) => list.filter((r) => !result.deletedIds.includes(r.receiptId)));
+        setSelectedIds([]);
+      } else if (result)
         setAll((list) => list.map((r) => (r.receiptId === result.receiptId ? result : r)));
       else if (action?.kind === 'delete')
         setAll((list) => list.filter((r) => r.receiptId !== action.r.receiptId));
@@ -1195,6 +1200,10 @@ function Admin({ onBack }) {
       setEditing(null);
       setDeleteChecked(false);
     } catch (e) {
+      if (e.deletedIds?.length) {
+        setAll((list) => list.filter((r) => !e.deletedIds.includes(r.receiptId)));
+        setSelectedIds((ids) => ids.filter((id) => !e.deletedIds.includes(id)));
+      }
       setError(inputError(e));
     } finally {
       lock.current = false;
@@ -1205,6 +1214,20 @@ function Admin({ onBack }) {
     await repo.remove(r.receiptId, r.version);
     if (r.attachmentKey) await deleteReceiptAttachment(r.attachmentKey).catch(() => {});
     return null;
+  }
+  async function removeSelectedReceipts(receipts) {
+    const deletedIds = [];
+    try {
+      for (const r of receipts) {
+        await repo.remove(r.receiptId, r.version);
+        deletedIds.push(r.receiptId);
+        if (r.attachmentKey) await deleteReceiptAttachment(r.attachmentKey).catch(() => {});
+      }
+      return { deletedIds };
+    } catch (e) {
+      e.deletedIds = deletedIds;
+      throw e;
+    }
   }
   function download() {
     const blob = new Blob([csv(rows)], { type: 'text/csv;charset=utf-8' }),
@@ -1245,14 +1268,14 @@ function Admin({ onBack }) {
         <div>
           <span>미처리</span>
           <strong>
-            {rows.filter((r) => r.status === 'pending').length}
+            {rows.filter((r) => r.voucherStatus === 'X').length}
             <small>건</small>
           </strong>
         </div>
         <div>
           <span>처리완료</span>
           <strong>
-            {rows.filter((r) => r.status === 'completed').length}
+            {rows.filter((r) => r.voucherStatus === 'O').length}
             <small>건</small>
           </strong>
         </div>
@@ -1267,6 +1290,7 @@ function Admin({ onBack }) {
             }
             setError('');
             setApplied({ ...filters });
+            setSelectedIds([]);
           }}
         >
           <div className="filter-grid">
@@ -1318,6 +1342,17 @@ function Admin({ onBack }) {
             등록내역 <span>{rows.length}건</span>
           </h2>
           <div className="list-tools">
+            <button
+              className="button danger-outline small"
+              disabled={busy || selectedIds.length === 0}
+              onClick={() => {
+                const selected = all.filter((r) => selectedIds.includes(r.receiptId));
+                setDeleteChecked(false);
+                setAction({ kind: 'bulkDelete', receipts: selected });
+              }}
+            >
+              선택 삭제{selectedIds.length ? ` (${selectedIds.length})` : ''}
+            </button>
             <button className="button secondary small" disabled={busy} onClick={load}>
               새로고침
             </button>
@@ -1339,6 +1374,18 @@ function Admin({ onBack }) {
                 {t}
               </span>
             ))}
+            <span role="columnheader" className="delete-column-head">
+              삭제
+              <input
+                aria-label="현재 목록 전체 선택"
+                type="checkbox"
+                checked={rows.length > 0 && rows.every((r) => selectedIds.includes(r.receiptId))}
+                disabled={busy || rows.length === 0}
+                onChange={(e) =>
+                  setSelectedIds(e.target.checked ? rows.map((r) => r.receiptId) : [])
+                }
+              />
+            </span>
           </div>
           {rows.length === 0 && !busy && (
             <div className="empty-state">
@@ -1397,6 +1444,33 @@ function Admin({ onBack }) {
                     <option value="O">O</option>
                     <option value="X">X</option>
                   </select>
+                </div>
+                <div className="delete-cell">
+                  <input
+                    aria-label={`${r.merchantName || '영수증'} 삭제 선택`}
+                    type="checkbox"
+                    checked={selectedIds.includes(r.receiptId)}
+                    disabled={busy}
+                    onChange={(e) =>
+                      setSelectedIds((ids) =>
+                        e.target.checked
+                          ? [...new Set([...ids, r.receiptId])]
+                          : ids.filter((id) => id !== r.receiptId),
+                      )
+                    }
+                  />
+                  <button
+                    className="row-delete-button"
+                    type="button"
+                    aria-label={`${r.merchantName || '영수증'} 삭제`}
+                    disabled={busy}
+                    onClick={() => {
+                      setDeleteChecked(false);
+                      setAction({ kind: 'delete', r });
+                    }}
+                  >
+                    삭제
+                  </button>
                 </div>
               </div>
               {expanded === r.receiptId && (
@@ -1519,28 +1593,39 @@ function Admin({ onBack }) {
       )}
       {action && (
         <Modal
-          title={action.kind === 'delete' ? '영수증 삭제' : '처리완료 변경'}
+          title={['delete', 'bulkDelete'].includes(action.kind) ? '영수증 삭제' : '처리완료 변경'}
           onClose={() => !busy && setAction(null)}
         >
           <p>
-            {action.kind === 'delete'
-              ? '이 등록내역을 삭제하시겠습니까? 삭제한 내용은 복구할 수 없습니다.'
+            {action.kind === 'bulkDelete'
+              ? `${action.receipts.length}건의 선택한 등록내역을 삭제하시겠습니까? 삭제한 내용은 복구할 수 없습니다.`
+              : action.kind === 'delete'
+                ? '이 등록내역을 삭제하시겠습니까? 삭제한 내용은 복구할 수 없습니다.'
               : '이 영수증을 처리완료로 변경하시겠습니까?'}
           </p>
-          <div className="mini-summary">
-            <strong>{action.r.merchantName || '관리팀 확인 요청'}</strong>
-            <span>
-              {action.r.receiptDate || '확인불가'} · {money(action.r.amount)}
-            </span>
-          </div>
-          {action.kind === 'delete' && (
+          {action.kind === 'bulkDelete' ? (
+            <div className="mini-summary">
+              <strong>{action.receipts.map((r) => r.merchantName || '확인 요청').slice(0, 3).join(', ')}</strong>
+              <span>{action.receipts.length > 3 ? `외 ${action.receipts.length - 3}건` : '선택 내역'}</span>
+            </div>
+          ) : (
+            <div className="mini-summary">
+              <strong>{action.r.merchantName || '관리팀 확인 요청'}</strong>
+              <span>
+                {action.r.receiptDate || '확인불가'} · {money(action.r.amount)}
+              </span>
+            </div>
+          )}
+          {['delete', 'bulkDelete'].includes(action.kind) && (
             <label className="checkbox">
               <input
                 type="checkbox"
                 checked={deleteChecked}
                 onChange={(e) => setDeleteChecked(e.target.checked)}
               />
-              위 등록내역을 삭제할 것을 확인했습니다.
+              {action.kind === 'bulkDelete'
+                ? '선택한 등록내역을 모두 삭제할 것을 확인했습니다.'
+                : '위 등록내역을 삭제할 것을 확인했습니다.'}
             </label>
           )}
           <ErrorBox message={error} />
@@ -1550,16 +1635,24 @@ function Admin({ onBack }) {
             </button>
             <button
               className={`button ${action.kind === 'delete' ? 'danger' : 'primary'}`}
-              disabled={busy || (action.kind === 'delete' && !deleteChecked)}
+              disabled={busy || (['delete', 'bulkDelete'].includes(action.kind) && !deleteChecked)}
               onClick={() =>
                 mutate(() =>
                   action.kind === 'delete'
                     ? removeReceipt(action.r)
-                    : repo.status(action.r.receiptId, action.r.version, 'completed'),
+                    : action.kind === 'bulkDelete'
+                      ? removeSelectedReceipts(action.receipts)
+                      : repo.status(action.r.receiptId, action.r.version, 'completed'),
                 )
               }
             >
-              {busy ? '처리 중...' : action.kind === 'delete' ? '삭제 확인' : '확인'}
+              {busy
+                ? '처리 중...'
+                : ['delete', 'bulkDelete'].includes(action.kind)
+                  ? action.kind === 'bulkDelete'
+                    ? '선택 삭제 확인'
+                    : '삭제 확인'
+                  : '확인'}
             </button>
           </div>
         </Modal>
