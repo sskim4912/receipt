@@ -324,7 +324,7 @@ function PhotoCapture({ photo, camera, onChange, onError, ocrMessage }) {
           />
         </button>
       ) : (
-        <p className="muted">촬영한 영수증을 보며 업체명·금액·사용일자를 입력하세요.</p>
+        <p className="muted">사진을 촬영하면 업체명·금액·사용일자가 자동으로 입력됩니다.</p>
       )}
       <input
         ref={camera}
@@ -572,10 +572,8 @@ function App() {
           <ErrorBox message={error} />
           {screen === 'manual' && (
             <section className="card">
-              <h2>영수증 사용내역 입력</h2>
               <p className="muted">
-                사진을 촬영해 원본을 확인하면서 업체명, 금액, 사용일자와 필수 사용정보를
-                입력해주세요.
+                사진을 촬영해 원본과 자동입력된 내역을 확인해주세요.
               </p>
               <form onSubmit={confirm} noValidate>
                 <PhotoCapture
