@@ -1523,11 +1523,13 @@ function Admin({ onBack }) {
         )}
         <div className="receipt-table" role="table" aria-label="등록 영수증">
           <div className="table-head" role="row">
-            {['일자', '사용자', '사용처', '금액', '승인번호'].map((t) => (
-              <span role="columnheader" key={t}>
-                {t}
-              </span>
-            ))}
+            <div className="table-head-open">
+              {['일자', '사용자', '사용처', '금액', '승인번호'].map((t) => (
+                <span role="columnheader" key={t}>
+                  {t}
+                </span>
+              ))}
+            </div>
             <span role="columnheader" className="photo-column-head">
               <input
                 aria-label="현재 목록 사진 전체 선택"
@@ -1547,11 +1549,8 @@ function Admin({ onBack }) {
               />
               사진 저장
             </span>
-            {['상태', '전표 처리'].map((t) => (
-              <span role="columnheader" key={t}>
-                {t}
-              </span>
-            ))}
+            <span role="columnheader">입력상태</span>
+            <span role="columnheader">전표 처리</span>
             <span role="columnheader" className="delete-column-head">
               <input
                 aria-label="현재 목록 전체 선택"

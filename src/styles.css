@@ -924,14 +924,22 @@ footer {
 }
 .table-head {
   display: grid;
-  grid-template-columns: 1fr 0.8fr 1.4fr 1fr 1fr 1.15fr 1.5fr 0.8fr 0.8fr;
+  grid-template-columns: 5.2fr 1.15fr 1.5fr 0.8fr 0.8fr;
   gap: 12px;
+  align-items: center;
   padding: 13px 24px;
   background: #f7f9fc;
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
   font-size: 11px;
   color: #7a8d9f;
+}
+.table-head-open {
+  display: grid;
+  grid-template-columns: 1fr 0.8fr 1.4fr 1fr 1fr;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
 }
 .table-row {
   display: grid;
@@ -997,8 +1005,10 @@ footer {
 .photo-cell {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 7px;
+  padding-left: 8px;
+  box-sizing: border-box;
   min-width: 0;
 }
 .delete-column-head input,
@@ -1188,7 +1198,9 @@ footer {
   }
   .delete-cell {
     flex-direction: column;
+    justify-content: center;
     gap: 5px;
+    padding-left: 0;
   }
   .row-delete-button {
     min-height: 28px;
