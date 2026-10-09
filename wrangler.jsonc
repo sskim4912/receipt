@@ -5,6 +5,7 @@
   "compatibility_date": "2026-10-08",
   "vars": {
     "GOOGLE_CLOUD_PROJECT_ID": "api-for-anythingllm-1",
+    "GCS_BUCKET_NAME": "sskim4912_bucket1",
     "VERTEX_AI_LOCATION": "us-central1",
     "VERTEX_AI_MODEL": "gemini-2.5-flash-lite",
   },

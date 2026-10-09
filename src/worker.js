@@ -139,9 +139,72 @@ function attachmentFileName(merchantName, amount, receiptDate, mimeType) {
   return `${merchant || '업체'}_${amount}_${receiptDate}.${extensions[mimeType]}`;
 }
 
+function validAttachmentKey(key) {
+  return /^receipts\/[0-9a-f-]{36}\/[\p{L}\p{N}._ -]{1,140}\.(jpg|png|webp|tiff)$/iu.test(
+    key,
+  );
+}
+
+function gcsObjectUrl(env, key, upload = false) {
+  const bucket = String(env.GCS_BUCKET_NAME || '').trim();
+  if (!/^[a-z0-9][a-z0-9._-]{1,220}[a-z0-9]$/.test(bucket))
+    throw new Error('Cloudflare Worker의 GCS_BUCKET_NAME 버킷 설정을 확인해주세요.');
+  const objectName = encodeURIComponent(key);
+  return upload
+    ? `https://storage.googleapis.com/upload/storage/v1/b/${encodeURIComponent(bucket)}/o?uploadType=media&name=${objectName}`
+    : `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(bucket)}/o/${objectName}`;
+}
+
+async function gcsRequest(env, key, { method = 'GET', bytes, contentType } = {}) {
+  const token = await getAccessToken(
+    env.GOOGLE_SERVICE_ACCOUNT_JSON || env.DOCUMENT_AI_SERVICE_ACCOUNT_JSON,
+  );
+  const upload = method === 'POST';
+  const url = upload
+    ? gcsObjectUrl(env, key, true)
+    : method === 'GET'
+      ? `${gcsObjectUrl(env, key)}?alt=media`
+      : gcsObjectUrl(env, key);
+  const response = await fetch(url, {
+    method,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...(contentType ? { 'Content-Type': contentType } : {}),
+    },
+    ...(bytes ? { body: bytes } : {}),
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    const message = safeText(payload.error?.message, 300);
+    if (response.status === 404) return null;
+    throw new Error(
+      message || `Google Cloud Storage 요청에 실패했습니다 (HTTP ${response.status}).`,
+    );
+  }
+  return response;
+}
+
+async function storeAttachment(env, key, bytes, contentType) {
+  await gcsRequest(env, key, { method: 'POST', bytes, contentType });
+}
+
+async function readAttachment(env, key) {
+  const response = await gcsRequest(env, key);
+  if (!response) return null;
+  return {
+    bytes: new Uint8Array(await response.arrayBuffer()),
+    contentType: response.headers.get('content-type') || 'application/octet-stream',
+  };
+}
+
+async function removeAttachment(env, key) {
+  const response = await gcsRequest(env, key, { method: 'DELETE' });
+  return Boolean(response);
+}
+
 async function handleReceiptAttachment(request, env) {
-  if (!env.RECEIPTS_BUCKET)
-    return json({ error: 'Cloudflare Worker에 RECEIPTS_BUCKET R2 버킷을 연결해주세요.' }, 503);
+  if (!env.GCS_BUCKET_NAME)
+    return json({ error: 'Cloudflare Worker의 GCS_BUCKET_NAME 버킷 설정을 확인해주세요.' }, 503);
 
   if (request.method === 'POST') {
     if (Number(request.headers.get('content-length') || 0) > MAX_IMAGE_BYTES + 64 * 1024)
@@ -175,10 +238,7 @@ async function handleReceiptAttachment(request, env) {
     const sha256 = [...new Uint8Array(digest)]
       .map((byte) => byte.toString(16).padStart(2, '0'))
       .join('');
-    await env.RECEIPTS_BUCKET.put(key, fileBytes, {
-      httpMetadata: { contentType: mimeType },
-      customMetadata: { fileName, receiptId, sha256 },
-    });
+    await storeAttachment(env, key, fileBytes, mimeType);
     return json({ key, fileName, sha256 });
   }
 
@@ -198,37 +258,33 @@ async function handleReceiptAttachment(request, env) {
       return json({ error: '첨부 사진과 등록번호가 일치하지 않습니다.' }, 400);
     if (!merchantName || !amount || !receiptDate)
       return json({ error: '사진 파일명에 사용할 업체명, 금액, 사용일자를 확인해주세요.' }, 400);
-    if (!/^receipts\/[0-9a-f-]{36}\/[\p{L}\p{N}._ -]{1,140}\.(jpg|png|webp|tiff)$/iu.test(oldKey))
+    if (!validAttachmentKey(oldKey))
       return json({ error: '첨부 사진 경로를 확인해주세요.' }, 400);
-    const object = await env.RECEIPTS_BUCKET.get(oldKey);
+    const object = await readAttachment(env, oldKey);
     if (!object)
       return json({ error: '첨부 사진을 찾을 수 없습니다. 사진을 다시 촬영해주세요.' }, 404);
-    const mimeType = object.httpMetadata?.contentType || 'image/jpeg';
+    const mimeType = object.contentType || 'image/jpeg';
     const fileName = attachmentFileName(merchantName, amount, receiptDate, mimeType);
     const key = `receipts/${receiptId}/${fileName}`;
-    const bytes = new Uint8Array(await object.arrayBuffer());
-    await env.RECEIPTS_BUCKET.put(key, bytes, {
-      httpMetadata: object.httpMetadata,
-      customMetadata: {
-        ...object.customMetadata,
-        fileName,
-        receiptId,
-      },
-    });
-    if (key !== oldKey) await env.RECEIPTS_BUCKET.delete(oldKey);
-    return json({ key, fileName, sha256: object.customMetadata?.sha256 || '' });
+    const digest = await crypto.subtle.digest('SHA-256', object.bytes);
+    const sha256 = [...new Uint8Array(digest)]
+      .map((byte) => byte.toString(16).padStart(2, '0'))
+      .join('');
+    await storeAttachment(env, key, object.bytes, mimeType);
+    if (key !== oldKey) await removeAttachment(env, oldKey);
+    return json({ key, fileName, sha256 });
   }
 
   if (request.method === 'GET') {
     const key = new URL(request.url).searchParams.get('key') || '';
-    if (!/^receipts\/[0-9a-f-]{36}\/[\p{L}\p{N}._ -]{1,140}\.(jpg|png|webp|tiff)$/iu.test(key))
+    if (!validAttachmentKey(key))
       return json({ error: '첨부 사진 경로를 확인해주세요.' }, 400);
-    const object = await env.RECEIPTS_BUCKET.get(key);
+    const object = await readAttachment(env, key);
     if (!object) return json({ error: '첨부 사진을 찾을 수 없습니다.' }, 404);
-    const fileName = object.customMetadata?.fileName || key.split('/').at(-1);
-    return new Response(object.body, {
+    const fileName = key.split('/').at(-1);
+    return new Response(object.bytes, {
       headers: {
-        'Content-Type': object.httpMetadata?.contentType || 'application/octet-stream',
+        'Content-Type': object.contentType,
         'Content-Disposition': `inline; filename*=UTF-8''${encodeURIComponent(fileName)}`,
         'Cache-Control': 'private, no-store',
         'X-Content-Type-Options': 'nosniff',
@@ -244,10 +300,10 @@ async function handleReceiptAttachment(request, env) {
       return json({ error: '첨부 사진 삭제 요청을 읽을 수 없습니다.' }, 400);
     }
     const key = String(input?.key || '');
-    if (!/^receipts\/[0-9a-f-]{36}\/[\p{L}\p{N}._ -]{1,140}\.(jpg|png|webp|tiff)$/iu.test(key))
+    if (!validAttachmentKey(key))
       return json({ error: '첨부 사진 경로를 확인해주세요.' }, 400);
-    await env.RECEIPTS_BUCKET.delete(key);
-    return json({ deleted: true });
+    const deleted = await removeAttachment(env, key);
+    return deleted ? json({ deleted: true }) : json({ error: '첨부 사진을 찾을 수 없습니다.' }, 404);
   }
   return json({ error: '지원하지 않는 요청입니다.' }, 405);
 }
