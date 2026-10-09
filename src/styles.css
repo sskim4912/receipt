@@ -436,6 +436,10 @@ fieldset {
   color: var(--blue);
   font-size: 11px;
 }
+.field i.required-mark.danger {
+  color: #9b1c1c;
+  font-weight: 800;
+}
 .field input,
 .field select {
   width: 100%;

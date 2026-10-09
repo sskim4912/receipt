@@ -103,6 +103,7 @@ function CoreFields({ value, onChange, team = false, simple = false }) {
           >
             <input
               ref={k === 'amount' ? amountInput : undefined}
+              name={k}
               aria-label={k === 'approvalNumber' ? '승인번호' : LABELS[k]}
               type={k === 'receiptDate' ? 'date' : 'text'}
               inputMode={['amount', 'approvalNumber'].includes(k) ? 'numeric' : undefined}
@@ -119,7 +120,6 @@ function CoreFields({ value, onChange, team = false, simple = false }) {
               }
               maxLength={k === 'merchantName' ? 160 : k === 'approvalNumber' ? 40 : undefined}
               pattern={k === 'amount' ? '[0-9,]+' : undefined}
-              placeholder={k === 'amount' ? '총 승인 금액·영수금액·결제금액·매출합계' : undefined}
               onChange={(e) => {
                 const next = e.target.value;
                 if (k === 'approvalNumber')
@@ -226,8 +226,9 @@ function ExtraFields({ value, onChange, includeMemo = false }) {
   return (
     <>
       <div className="form-grid">
-        <Field label="실제 사용자(당사 임직원)">
+        <Field label="실제 사용자(당사 임직원)" requiredTone="danger">
           <input
+            name="employeeName"
             aria-label="실제 사용자"
             value={value.employeeName}
             placeholder="예) 김성석"
@@ -238,6 +239,7 @@ function ExtraFields({ value, onChange, includeMemo = false }) {
         </Field>
         <Field
           label="참석 인원수"
+          requiredTone="danger"
           hint={
             value.attendeeCount && !/^(?:[1-9]|[1-9]\d)$/.test(value.attendeeCount)
               ? '참석 인원수는 1~99 사이의 숫자만 입력해주세요.'
@@ -245,6 +247,7 @@ function ExtraFields({ value, onChange, includeMemo = false }) {
           }
         >
           <input
+            name="attendeeCount"
             aria-label="참석 인원수"
             inputMode="numeric"
             pattern="[1-9][0-9]?"
@@ -256,8 +259,9 @@ function ExtraFields({ value, onChange, includeMemo = false }) {
             onChange={(e) => set('attendeeCount', e.target.value)}
           />
         </Field>
-        <Field label="구체적인 사용 목적">
+        <Field label="구체적인 사용 목적" requiredTone="danger">
           <input
+            name="purpose"
             aria-label="구체적인 사용 목적"
             value={value.purpose}
             placeholder="예) 관리팀 회식"
@@ -266,8 +270,9 @@ function ExtraFields({ value, onChange, includeMemo = false }) {
             onChange={(e) => set('purpose', e.target.value)}
           />
         </Field>
-        <Field label="사용장소">
+        <Field label="사용장소" requiredTone="danger">
           <input
+            name="location"
             aria-label="사용장소"
             value={value.location}
             placeholder="예) 대산읍"
@@ -447,14 +452,40 @@ function App() {
     setScreen(next);
     setError('');
   }
+  function focusEntryField(name) {
+    if (!name) return;
+    requestAnimationFrame(() => {
+      const field = document.querySelector(`[name="${name}"]`);
+      if (!field) return;
+      field.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      field.focus({ preventScroll: true });
+    });
+  }
   function confirm(e) {
     e.preventDefault();
+    const requiredEntries = [
+      { name: 'merchantName', label: '업체명', value: core.merchantName },
+      { name: 'amount', label: '영수금액', value: core.amount },
+      { name: 'receiptDate', label: '사용일자', value: core.receiptDate },
+      { name: 'employeeName', label: '실제 사용자(당사 임직원)', value: extras.employeeName },
+      { name: 'attendeeCount', label: '참석 인원수', value: extras.attendeeCount },
+      { name: 'purpose', label: '구체적인 사용 목적', value: extras.purpose },
+      { name: 'location', label: '사용장소', value: extras.location },
+    ];
+    const missing = requiredEntries.find(({ value }) => !String(value || '').trim());
+    if (missing) {
+      setError(`${missing.label}을(를) 입력해주세요.`);
+      focusEntryField(missing.name);
+      return;
+    }
     try {
       validateInput(core, extras);
       setError('');
       setScreen('confirm');
     } catch (err) {
       setError(inputError(err));
+      const issueField = err?.issues?.find((issue) => issue.path?.length)?.path?.[0];
+      focusEntryField(issueField || (String(err.message).includes('영수금액') ? 'amount' : ''));
     }
   }
   let valid = false;
@@ -462,15 +493,6 @@ function App() {
     validateInput(core, extras);
     valid = true;
   } catch {}
-  const requiredFieldsFilled = Boolean(
-    core.merchantName.trim() &&
-      core.amount.trim() &&
-      core.receiptDate &&
-      extras.employeeName.trim() &&
-      extras.attendeeCount.trim() &&
-      extras.purpose.trim() &&
-      extras.location.trim(),
-  );
   async function register(e) {
     e.preventDefault();
     if (lock.current || !valid) return;
@@ -555,7 +577,7 @@ function App() {
                 사진을 촬영해 원본을 확인하면서 업체명, 금액, 사용일자와 필수 사용정보를
                 입력해주세요.
               </p>
-              <form onSubmit={confirm}>
+              <form onSubmit={confirm} noValidate>
                 <PhotoCapture
                   photo={photo}
                   camera={camera}
@@ -566,8 +588,8 @@ function App() {
                 <CoreFields value={core} onChange={setCore} simple />
                 <ExtraFields value={extras} onChange={setExtras} />
                 <ErrorBox message={error} />
-                <button className="button primary full" disabled={!requiredFieldsFilled || busy}>
-                  입력내용 확인
+                <button className="button primary full" disabled={busy}>
+                  입력내용 확인 및 전송
                 </button>
               </form>
             </section>
