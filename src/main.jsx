@@ -545,11 +545,12 @@ function App() {
         <main className="registration">
           <div className="employee-nav">
             <button className="text-button" onClick={() => navigate('history')} disabled={busy}>
-              처리상태 조회
+              등록 내역 확인
             </button>
           </div>
+          <h2 className="process-title">처리 절차</h2>
           <ol className="steps" aria-label="등록 단계">
-            {['필수정보 입력', '내용 확인', '등록 완료'].map((s, i) => (
+            {['영수증 사진 촬영', '필수 정보 입력', '입력 확인 및 전송'].map((s, i) => (
               <li
                 key={s}
                 className={i === step ? 'active' : i < step ? 'complete' : ''}
