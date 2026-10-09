@@ -668,18 +668,21 @@ footer span {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
-  padding: 12px 16px;
-  background: #fff4d2;
-  color: #876c22;
+  gap: 4px;
+  padding: 14px 16px;
+  background: #eaf3fb;
+  border-bottom: 1px solid #d8e5f0;
+  color: #174a73;
   text-align: center;
 }
 .project-banner strong {
-  font-size: 15px;
+  font-size: 18px;
+  font-weight: 750;
   line-height: 1.4;
 }
 .project-banner span {
-  font-size: 11px;
+  color: #58728a;
+  font-size: 13px;
   line-height: 1.5;
 }
 .overlay {
@@ -1298,13 +1301,13 @@ footer span {
     width: 100%;
   }
   .project-banner {
-    padding: 11px 12px;
+    padding: 12px;
   }
   .project-banner strong {
-    font-size: 14px;
+    font-size: 16px;
   }
   .project-banner span {
-    font-size: 11px;
+    font-size: 12px;
   }
   footer {
     width: 100%;
