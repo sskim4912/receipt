@@ -323,9 +323,7 @@ function PhotoCapture({ photo, camera, onChange, onError, ocrMessage }) {
             alt="브라우저에서 임시로 확인 중인 영수증"
           />
         </button>
-      ) : (
-        <p className="muted">사진을 촬영하면 업체명·금액·사용일자가 자동으로 입력됩니다.</p>
-      )}
+      ) : null}
       <input
         ref={camera}
         className="visually-hidden"
@@ -351,10 +349,6 @@ function PhotoCapture({ photo, camera, onChange, onError, ocrMessage }) {
       >
         {photo ? '다시 촬영' : '영수증 사진 촬영'}
       </button>
-      <small>
-        사진은 Cloud Vision OCR과 Vertex AI 판독을 위해 일시 전송되며 Firebase에는 저장하지
-        않습니다.
-      </small>
       {ocrMessage && (
         <p className="ocr-status" role="status">
           {ocrMessage}
@@ -363,9 +357,6 @@ function PhotoCapture({ photo, camera, onChange, onError, ocrMessage }) {
       {large && (
         <Modal title="현재 영수증 사진" wide onClose={() => setLarge(false)}>
           <img className="modal-image" src={photo.url} alt="현재 영수증 확대" />
-          <p className="muted">
-            사진 파일은 등록 후 브라우저에서 지워지며, Firestore에는 저장되지 않습니다.
-          </p>
         </Modal>
       )}
     </div>
@@ -411,7 +402,7 @@ function App() {
     setError('');
     const controller = new AbortController();
     ocrRequest.current = controller;
-    setOcrMessage('Cloud Vision OCR과 Vertex AI로 영수증을 읽는 중입니다…');
+    setOcrMessage('영수증을 읽는 중입니다…');
     try {
       const recognized = await recognizeReceipt(value.file, {
         signal: controller.signal,
@@ -572,9 +563,13 @@ function App() {
           <ErrorBox message={error} />
           {screen === 'manual' && (
             <section className="card">
-              <p className="muted">
-                사진을 촬영해 원본과 자동입력된 내역을 확인해주세요.
-              </p>
+              <div className="section-heading">
+                <span className="section-number">1</span>
+                <div>
+                  <h2>영수증 사진 촬영</h2>
+                  <p>선명하게, 크게 사진 찍어주세요. 사진을 촬영하면 자동으로 주요 정보가 입력됩니다.</p>
+                </div>
+              </div>
               <form onSubmit={confirm} noValidate>
                 <PhotoCapture
                   photo={photo}
@@ -806,8 +801,7 @@ function Detail({ r }) {
       </dl>
       <p className="file-label">등록번호: {r.receiptId}</p>
       <div className="notice">
-        영수증 사진 미수집 · 원본 영수증은 이 앱에 저장하지 않습니다. 직접 입력한 내용은 원본과
-        대조해주세요.
+        직접 입력한 내용은 원본 영수증과 대조해주세요.
       </div>
       {r.suspectedDuplicate && (
         <p className="duplicate-note">중복 의심: 동일 사용처·일자·금액의 내역을 확인해주세요.</p>
