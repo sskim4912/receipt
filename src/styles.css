@@ -164,6 +164,10 @@ fieldset {
   font-size: 14px;
   margin-top: 10px;
 }
+.page-intro .page-intro-note {
+  margin-top: 4px;
+  font-size: 13px;
+}
 .process-title {
   margin-top: 18px;
   color: var(--blue);

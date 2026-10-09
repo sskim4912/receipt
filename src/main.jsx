@@ -946,8 +946,8 @@ function History({ onBack }) {
         <h1>본인 등록 내용 조회</h1>
         <p>
           이름으로 등록 내역을 조회하고, 항목을 누르면 상세 정보와 영수증 사진을 볼 수 있습니다.
-          동명이인은 사번으로 구분할 수 있습니다.
         </p>
+        <p className="page-intro-note">동명이인은 사번으로 구분할 수 있습니다.</p>
       </div>
       <section className="card history-card">
         <form onSubmit={search}>
