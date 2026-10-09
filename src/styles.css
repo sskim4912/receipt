@@ -924,7 +924,7 @@ footer {
 }
 .table-head {
   display: grid;
-  grid-template-columns: 1fr 0.8fr 1.4fr 1fr 1fr 0.5fr 1.5fr 0.8fr 0.8fr;
+  grid-template-columns: 1fr 0.8fr 1.4fr 1fr 1fr 1.15fr 1.5fr 0.8fr 0.8fr;
   gap: 12px;
   padding: 13px 24px;
   background: #f7f9fc;
@@ -935,7 +935,7 @@ footer {
 }
 .table-row {
   display: grid;
-  grid-template-columns: 5.2fr 0.5fr 1.5fr 0.8fr 0.8fr;
+  grid-template-columns: 5.2fr 1.15fr 1.5fr 0.8fr 0.8fr;
   gap: 12px;
   align-items: center;
   padding: 16px 24px;
@@ -992,7 +992,9 @@ footer {
   border-color: #73a5d3;
 }
 .delete-column-head,
-.delete-cell {
+.delete-cell,
+.photo-column-head,
+.photo-cell {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1000,7 +1002,9 @@ footer {
   min-width: 0;
 }
 .delete-column-head input,
-.delete-cell input {
+.delete-cell input,
+.photo-column-head input,
+.photo-cell input {
   width: 16px;
   height: 16px;
   margin: 0;
@@ -1138,7 +1142,7 @@ footer {
     display: none;
   }
   .table-row {
-    grid-template-columns: minmax(0, 1fr) 56px 104px 68px 76px;
+    grid-template-columns: minmax(0, 1fr) 92px 104px 68px 76px;
     gap: 8px;
     padding: 16px 12px;
   }
@@ -1415,7 +1419,7 @@ footer {
     padding: 7px 9px;
   }
   .table-row {
-    grid-template-columns: minmax(0, 1fr) 58px 62px;
+    grid-template-columns: minmax(0, 1fr) 86px 62px;
     gap: 8px;
     padding: 15px 12px;
   }
@@ -1423,8 +1427,7 @@ footer {
     grid-column: 1;
     grid-row: 1 / span 3;
   }
-  .table-row > .attachment-link,
-  .table-row > .no-image {
+  .table-row > .photo-cell {
     grid-column: 2;
     grid-row: 2;
     justify-self: center;
@@ -2195,6 +2198,12 @@ footer {
 .static-detail {
   grid-template-columns: 1fr;
 }
+.admin-gate-note {
+  margin: 0 0 16px;
+  color: #8292a2;
+  font-size: 11px;
+  line-height: 1.5;
+}
 .no-image {
   font-size: 10px;
   color: #8b99a7;
@@ -2212,6 +2221,13 @@ footer {
 }
 .attachment-link:hover {
   background: #e8f2fb;
+}
+.photo-cell {
+  gap: 5px;
+}
+.photo-column-head {
+  gap: 6px;
+  white-space: nowrap;
 }
 .danger {
   background: #b94436;

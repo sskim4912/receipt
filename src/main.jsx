@@ -52,6 +52,72 @@ function formatAmountInput(value) {
   const digits = String(value || '').replace(/\D/g, '');
   return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
+function makeZip(files) {
+  const encoder = new TextEncoder();
+  const table = Uint32Array.from({ length: 256 }, (_, index) => {
+    let value = index;
+    for (let bit = 0; bit < 8; bit++) value = value & 1 ? 0xedb88320 ^ (value >>> 1) : value >>> 1;
+    return value >>> 0;
+  });
+  const crc32 = (bytes) => {
+    let crc = 0xffffffff;
+    for (const byte of bytes) crc = table[(crc ^ byte) & 0xff] ^ (crc >>> 8);
+    return (crc ^ 0xffffffff) >>> 0;
+  };
+  const now = new Date();
+  const time = (now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1);
+  const date = ((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate();
+  const localParts = [], centralParts = [];
+  let offset = 0;
+
+  for (const file of files) {
+    const name = encoder.encode(file.name);
+    const bytes = file.bytes;
+    const crc = crc32(bytes);
+    const local = new Uint8Array(30 + name.length);
+    const localView = new DataView(local.buffer);
+    localView.setUint32(0, 0x04034b50, true);
+    localView.setUint16(4, 20, true);
+    localView.setUint16(6, 0x0800, true);
+    localView.setUint16(8, 0, true);
+    localView.setUint16(10, time, true);
+    localView.setUint16(12, date, true);
+    localView.setUint32(14, crc, true);
+    localView.setUint32(18, bytes.length, true);
+    localView.setUint32(22, bytes.length, true);
+    localView.setUint16(26, name.length, true);
+    local.set(name, 30);
+    localParts.push(local, bytes);
+
+    const central = new Uint8Array(46 + name.length);
+    const centralView = new DataView(central.buffer);
+    centralView.setUint32(0, 0x02014b50, true);
+    centralView.setUint16(4, 20, true);
+    centralView.setUint16(6, 20, true);
+    centralView.setUint16(8, 0x0800, true);
+    centralView.setUint16(10, 0, true);
+    centralView.setUint16(12, time, true);
+    centralView.setUint16(14, date, true);
+    centralView.setUint32(16, crc, true);
+    centralView.setUint32(20, bytes.length, true);
+    centralView.setUint32(24, bytes.length, true);
+    centralView.setUint16(28, name.length, true);
+    centralView.setUint32(42, offset, true);
+    central.set(name, 46);
+    centralParts.push(central);
+    offset += local.length + bytes.length;
+  }
+
+  const centralSize = centralParts.reduce((sum, part) => sum + part.length, 0);
+  const end = new Uint8Array(22);
+  const endView = new DataView(end.buffer);
+  endView.setUint32(0, 0x06054b50, true);
+  endView.setUint16(8, files.length, true);
+  endView.setUint16(10, files.length, true);
+  endView.setUint32(12, centralSize, true);
+  endView.setUint32(16, offset, true);
+  return new Blob([...localParts, ...centralParts, end], { type: 'application/zip' });
+}
 function Summary({ core, extras }) {
   return (
     <dl className="core-summary">
@@ -877,9 +943,9 @@ function Login({ onClose, onSuccess }) {
   }
   return (
     <Modal title="관리자 접속" onClose={() => !busy && onClose()}>
-      <div className="notice warning">
-        테스트용 화면 잠금입니다. 공개 Firestore 규칙에서는 데이터 접근을 보호하지 않습니다.
-      </div>
+      <p className="admin-gate-note">
+        화면 잠금용 비밀번호이며 Firestore 데이터 접근 권한은 제한하지 않습니다.
+      </p>
       {gate === undefined && !error && <p role="status">설정 확인 중...</p>}
       {gate === null && (
         <p className="muted">
@@ -1171,7 +1237,9 @@ function Admin({ onBack }) {
     [action, setAction] = useState(null),
     [deleteChecked, setDeleteChecked] = useState(false),
     [attachment, setAttachment] = useState(null),
-    [selectedIds, setSelectedIds] = useState([]);
+    [selectedIds, setSelectedIds] = useState([]),
+    [selectedPhotoIds, setSelectedPhotoIds] = useState([]),
+    [downloadingPhotos, setDownloadingPhotos] = useState(false);
   const lock = useRef(false);
   const rows = filterReceipts(all, applied);
   async function load() {
@@ -1182,6 +1250,7 @@ function Admin({ onBack }) {
     try {
       setAll(await repo.list());
       setSelectedIds([]);
+      setSelectedPhotoIds([]);
     } catch (e) {
       setError(inputError(e));
     } finally {
@@ -1202,10 +1271,14 @@ function Admin({ onBack }) {
       if (result?.deletedIds) {
         setAll((list) => list.filter((r) => !result.deletedIds.includes(r.receiptId)));
         setSelectedIds([]);
+        setSelectedPhotoIds([]);
       } else if (result)
         setAll((list) => list.map((r) => (r.receiptId === result.receiptId ? result : r)));
-      else if (action?.kind === 'delete')
+      else if (action?.kind === 'delete') {
         setAll((list) => list.filter((r) => r.receiptId !== action.r.receiptId));
+        setSelectedIds((ids) => ids.filter((id) => id !== action.r.receiptId));
+        setSelectedPhotoIds((ids) => ids.filter((id) => id !== action.r.receiptId));
+      }
       setAction(null);
       setEditing(null);
       setDeleteChecked(false);
@@ -1213,6 +1286,7 @@ function Admin({ onBack }) {
       if (e.deletedIds?.length) {
         setAll((list) => list.filter((r) => !e.deletedIds.includes(r.receiptId)));
         setSelectedIds((ids) => ids.filter((id) => !e.deletedIds.includes(id)));
+        setSelectedPhotoIds((ids) => ids.filter((id) => !e.deletedIds.includes(id)));
       }
       setError(inputError(e));
     } finally {
@@ -1237,6 +1311,67 @@ function Admin({ onBack }) {
     } catch (e) {
       e.deletedIds = deletedIds;
       throw e;
+    }
+  }
+  async function downloadSelectedPhotos() {
+    const selected = all.filter(
+      (r) => selectedPhotoIds.includes(r.receiptId) && r.imageStored && r.attachmentKey,
+    );
+    if (!selected.length || downloadingPhotos) return;
+    if (selected.length > 100) {
+      setError('사진은 한 번에 100장까지 저장할 수 있습니다. 검색 조건을 나눠서 다시 선택해주세요.');
+      return;
+    }
+    setDownloadingPhotos(true);
+    setError('');
+    try {
+      const files = new Array(selected.length);
+      const failures = [];
+      let cursor = 0;
+      await Promise.all(
+        Array.from({ length: Math.min(4, selected.length) }, async () => {
+          while (cursor < selected.length) {
+            const index = cursor++;
+            const receipt = selected[index];
+            try {
+              const response = await fetch(receiptAttachmentUrl(receipt.attachmentKey));
+              if (!response.ok) throw new Error(`${receipt.attachmentName || receipt.merchantName}: 사진을 불러오지 못했습니다.`);
+              files[index] = {
+                name: String(receipt.attachmentName || makeReceiptFileName(receipt))
+                  .replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_')
+                  .slice(0, 180),
+                bytes: new Uint8Array(await response.arrayBuffer()),
+              };
+            } catch (error) {
+              failures.push(error.message || '사진을 불러오지 못했습니다.');
+            }
+          }
+        }),
+      );
+      const available = files.filter(Boolean);
+      if (!available.length) throw new Error('다운로드할 수 있는 사진이 없습니다. 첨부 저장 상태를 확인해주세요.');
+      const uniqueNames = new Map();
+      for (const file of available) {
+        const count = uniqueNames.get(file.name) || 0;
+        uniqueNames.set(file.name, count + 1);
+        if (count) {
+          const dot = file.name.lastIndexOf('.');
+          file.name = `${dot > 0 ? file.name.slice(0, dot) : file.name}_${count + 1}${dot > 0 ? file.name.slice(dot) : ''}`;
+        }
+      }
+      const blob = makeZip(available);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `영수증_사진_${applied.start || '전체'}_${applied.end || '전체'}.zip`;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 30_000);
+      if (failures.length)
+        setError(`${available.length}장 저장 완료. ${failures.length}장은 사진을 불러오지 못해 제외했습니다.`);
+    } catch (error) {
+      setError(error.message || '사진 파일을 묶는 중 오류가 발생했습니다.');
+    } finally {
+      setDownloadingPhotos(false);
     }
   }
   function download() {
@@ -1301,6 +1436,7 @@ function Admin({ onBack }) {
             setError('');
             setApplied({ ...filters });
             setSelectedIds([]);
+            setSelectedPhotoIds([]);
           }}
         >
           <div className="filter-grid">
@@ -1353,6 +1489,14 @@ function Admin({ onBack }) {
           </h2>
           <div className="list-tools">
             <button
+              className="button secondary small"
+              disabled={busy || downloadingPhotos || selectedPhotoIds.length === 0}
+              onClick={downloadSelectedPhotos}
+            >
+              <Icon name="download" size={16} />
+              {downloadingPhotos ? '사진 묶는 중...' : `선택 사진 다운로드${selectedPhotoIds.length ? ` (${selectedPhotoIds.length})` : ''}`}
+            </button>
+            <button
               className="button danger-outline small"
               disabled={busy || selectedIds.length === 0}
               onClick={() => {
@@ -1379,13 +1523,36 @@ function Admin({ onBack }) {
         )}
         <div className="receipt-table" role="table" aria-label="등록 영수증">
           <div className="table-head" role="row">
-            {['일자', '사용자', '사용처', '금액', '승인번호', '사진', '상태', '전표 처리'].map((t) => (
+            {['일자', '사용자', '사용처', '금액', '승인번호'].map((t) => (
+              <span role="columnheader" key={t}>
+                {t}
+              </span>
+            ))}
+            <span role="columnheader" className="photo-column-head">
+              <input
+                aria-label="현재 목록 사진 전체 선택"
+                type="checkbox"
+                checked={
+                  rows.some((r) => r.imageStored && r.attachmentKey) &&
+                  rows.filter((r) => r.imageStored && r.attachmentKey).every((r) => selectedPhotoIds.includes(r.receiptId))
+                }
+                disabled={busy || downloadingPhotos || !rows.some((r) => r.imageStored && r.attachmentKey)}
+                onChange={(e) =>
+                  setSelectedPhotoIds(
+                    e.target.checked
+                      ? rows.filter((r) => r.imageStored && r.attachmentKey).map((r) => r.receiptId)
+                      : [],
+                  )
+                }
+              />
+              사진 저장
+            </span>
+            {['상태', '전표 처리'].map((t) => (
               <span role="columnheader" key={t}>
                 {t}
               </span>
             ))}
             <span role="columnheader" className="delete-column-head">
-              삭제
               <input
                 aria-label="현재 목록 전체 선택"
                 type="checkbox"
@@ -1395,6 +1562,7 @@ function Admin({ onBack }) {
                   setSelectedIds(e.target.checked ? rows.map((r) => r.receiptId) : [])
                 }
               />
+              삭제
             </span>
           </div>
           {rows.length === 0 && !busy && (
@@ -1419,20 +1587,35 @@ function Admin({ onBack }) {
                   <span className="row-amount">{money(r.amount)}</span>
                   <span className="row-approval">{display(r, 'approvalNumber')}</span>
                 </button>
-                {r.imageStored && r.attachmentKey ? (
-                  <button
-                    className="attachment-link"
-                    type="button"
-                    onClick={() => setAttachment(r)}
-                  >
-                    첨부 보기
-                  </button>
-                ) : (
-                  <small className="no-image">
-                    <Icon name="receipt" size={14} />
-                    사진 없음
-                  </small>
-                )}
+                <div className="photo-cell">
+                  <input
+                    aria-label={`${r.merchantName || '영수증'} 사진 저장 선택`}
+                    type="checkbox"
+                    checked={selectedPhotoIds.includes(r.receiptId)}
+                    disabled={busy || downloadingPhotos || !r.imageStored || !r.attachmentKey}
+                    onChange={(e) =>
+                      setSelectedPhotoIds((ids) =>
+                        e.target.checked
+                          ? [...new Set([...ids, r.receiptId])]
+                          : ids.filter((id) => id !== r.receiptId),
+                      )
+                    }
+                  />
+                  {r.imageStored && r.attachmentKey ? (
+                    <button
+                      className="attachment-link"
+                      type="button"
+                      onClick={() => setAttachment(r)}
+                    >
+                      첨부 보기
+                    </button>
+                  ) : (
+                    <small className="no-image">
+                      <Icon name="receipt" size={14} />
+                      사진 없음
+                    </small>
+                  )}
+                </div>
                 <div className="admin-status-cell">
                   <Badge
                     status={r.status}
