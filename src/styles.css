@@ -404,6 +404,8 @@ fieldset {
   font-size: 13px;
   line-height: 1.55;
   overflow-wrap: anywhere;
+  white-space: pre-line;
+  text-align: left;
 }
 .core-summary {
   margin: 0 0 24px;
