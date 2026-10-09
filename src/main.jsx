@@ -692,19 +692,21 @@ function App() {
                 </div>
                 <ExtraFields value={extras} onChange={setExtras} />
                 <ErrorBox message={error} />
-                <div className="section-heading section-heading-required">
-                  <span className="section-number">3</span>
-                  <div>
-                    <h2>입력 내용 확인</h2>
+                <div className="confirmation-action-panel">
+                  <div className="section-heading section-heading-required">
+                    <span className="section-number">3</span>
+                    <div>
+                      <h2>입력 내용 확인</h2>
+                    </div>
                   </div>
+                  <button
+                    className="button primary full"
+                    disabled={busy || photo?.uploadState === 'uploading'}
+                  >
+                    <Icon name="receipt" size={19} />
+                    입력 내용 확인 버튼
+                  </button>
                 </div>
-                <button
-                  className="button primary full"
-                  disabled={busy || photo?.uploadState === 'uploading'}
-                >
-                  <Icon name="receipt" size={19} />
-                  입력 내용 확인 버튼
-                </button>
               </form>
             </section>
           )}

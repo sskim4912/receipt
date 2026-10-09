@@ -1609,6 +1609,25 @@ body {
   font-size: 16px;
   font-weight: 750;
 }
+.confirmation-action-panel {
+  margin-top: 18px;
+  padding: 14px;
+  border: 1px solid #e5ebf2;
+  border-radius: 15px;
+  background: #f7f9fc;
+}
+.confirmation-action-panel .section-heading-required {
+  margin-top: 0;
+}
+.confirmation-action-panel .section-heading {
+  margin-bottom: 14px;
+}
+.confirmation-action-panel > .button.primary.full {
+  min-height: 54px;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 750;
+}
 footer {
   color: #657c92;
   display: flex;
@@ -1697,6 +1716,18 @@ footer {
   .registration form > .button.primary.full {
     min-height: 52px;
     margin-top: 12px;
+  }
+  .confirmation-action-panel {
+    margin-top: 14px;
+    padding: 11px;
+  }
+  .confirmation-action-panel .section-heading {
+    margin-bottom: 12px;
+    padding-bottom: 11px;
+  }
+  .confirmation-action-panel > .button.primary.full {
+    min-height: 52px;
+    margin: 0;
   }
   footer {
     padding-top: 16px;
