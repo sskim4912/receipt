@@ -156,7 +156,8 @@ export function money(v) {
 export function display(r, key) {
   if (['amount', 'supplyAmount', 'vatAmount'].includes(key)) return money(r[key]);
   if (key === 'approvalNumber' && r.approvalState === 'absent') return '승인번호 없음';
-  if (key === 'approvalNumber' && r.approvalState === 'unreadable' && !r[key]) return '미확인';
+  if (key === 'approvalNumber' && !String(r[key] ?? '').trim()) return '미확인';
+  if (key === 'approvalNumber') return String(r[key]).trim();
   if (key === 'status') return STATUSES[r[key]] || r[key];
   if (key === 'registrationMethod') return METHODS[r[key]] || r[key];
   if (key === 'inputSource') return INPUT_SOURCES[r[key]] || '기록없음';

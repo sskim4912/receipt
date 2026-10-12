@@ -1557,7 +1557,9 @@ function Admin({ onBack }) {
               />
               사진 전체
             </span>
-            <span role="columnheader">입력상태</span>
+            <span role="columnheader" className="input-status-head">
+              입력상태
+            </span>
             <span role="columnheader">전표 처리</span>
             <span role="columnheader" className="delete-column-head">
               <input
