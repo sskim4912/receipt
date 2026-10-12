@@ -106,6 +106,18 @@ function normalizeAmount(value) {
   return Number.isSafeInteger(amount) && amount > 0 ? String(amount) : '';
 }
 
+function normalizeBusinessNumber(value) {
+  const digits = String(value || '').replace(/\D/g, '');
+  return digits.length === 10
+    ? `${digits.slice(0, 3)}-${digits.slice(3, 5)}-${digits.slice(5)}`
+    : '';
+}
+
+function normalizeApprovalNumber(value) {
+  const digits = String(value || '').replace(/\D/g, '');
+  return digits.length >= 4 && digits.length <= 40 ? digits : '';
+}
+
 function normalizeDate(value) {
   const date = safeText(value, 10);
   if (!/^20\d{2}-\d{2}-\d{2}$/.test(date)) return '';
@@ -341,7 +353,7 @@ async function classifyReceipt(token, env, ocrText) {
   )}/locations/${encodeURIComponent(location)}/publishers/google/models/${encodeURIComponent(
     model,
   )}:generateContent`;
-  const prompt = `다음은 한국 영수증의 OCR 원문입니다. 원문에 있는 정보만 추출하고 추측하지 마세요. 찾지 못한 값은 빈 문자열로 반환하세요.\n\n필드:\n- merchantName: 상호 또는 가맹점명\n- amount: 최종 승인/결제/영수 금액의 숫자만\n- receiptDate: 승인일시 또는 거래일시의 날짜를 YYYY-MM-DD로\n- receiptTime: 승인일시 또는 거래일시의 시각을 HH:mm:ss로\n- location: 영수증에 인쇄된 가맹점 주소. 주소가 없으면 빈 문자열\n\nOCR 원문:\n${ocrText.slice(0, 18000)}`;
+  const prompt = `다음은 한국 영수증의 OCR 원문입니다. 원문에 명확히 인쇄된 정보만 추출하고 추측하지 마세요. 찾지 못했거나 읽기 어려운 값은 빈 문자열로 반환하세요. 사업자번호는 사업자등록번호 항목만, 승인번호는 승인번호 항목만 사용하고 사업자번호·전화번호·거래번호를 서로 혼동하지 마세요.\n\n필드:\n- merchantName: 상호 또는 가맹점명\n- amount: 최종 승인/결제/영수 금액의 숫자만\n- receiptDate: 승인일시 또는 거래일시의 날짜를 YYYY-MM-DD로\n- receiptTime: 승인일시 또는 거래일시의 시각을 HH:mm:ss로\n- location: 영수증에 인쇄된 가맹점 주소. 주소가 없으면 빈 문자열\n- businessNumber: 라벨이 확인되는 사업자등록번호 10자리\n- approvalNumber: 라벨이 확인되는 승인번호의 숫자만\n\nOCR 원문:\n${ocrText.slice(0, 18000)}`;
   const response = await fetch(endpoint, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -359,8 +371,18 @@ async function classifyReceipt(token, env, ocrText) {
             receiptDate: { type: 'STRING' },
             receiptTime: { type: 'STRING' },
             location: { type: 'STRING' },
+            businessNumber: { type: 'STRING' },
+            approvalNumber: { type: 'STRING' },
           },
-          required: ['merchantName', 'amount', 'receiptDate', 'receiptTime', 'location'],
+          required: [
+            'merchantName',
+            'amount',
+            'receiptDate',
+            'receiptTime',
+            'location',
+            'businessNumber',
+            'approvalNumber',
+          ],
         },
       },
     }),
@@ -430,6 +452,8 @@ async function processReceipt(request, env) {
       receiptDate: normalizeDate(aiValues.receiptDate) || fallback.receiptDate,
       receiptTime: normalizeTime(aiValues.receiptTime),
       location: safeText(aiValues.location) || fallback.location,
+      businessNumber: normalizeBusinessNumber(aiValues.businessNumber) || fallback.businessNumber || '',
+      approvalNumber: normalizeApprovalNumber(aiValues.approvalNumber) || fallback.approvalNumber || '',
     });
   } catch (error) {
     return json({ error: error.message || '영수증을 처리하지 못했습니다.' }, 502);

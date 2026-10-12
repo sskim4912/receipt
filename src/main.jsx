@@ -544,12 +544,16 @@ function App() {
       )
         setInputSource('ocr');
       const { location, ...coreValues } = recognized;
-      setCore((current) => ({
-        ...current,
-        ...Object.fromEntries(
-          Object.entries(coreValues).filter(([key, value]) => value && !current[key]),
-        ),
-      }));
+      setCore((current) => {
+        const extractedCore = Object.fromEntries(
+          Object.entries(coreValues).filter(([key, fieldValue]) => fieldValue && !current[key]),
+        );
+        return {
+          ...current,
+          ...extractedCore,
+          ...(extractedCore.approvalNumber ? { approvalState: 'present' } : {}),
+        };
+      });
       if (location)
         setExtras((current) => ({ ...current, location: current.location || location }));
       setOcrMessage(

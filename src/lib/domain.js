@@ -218,9 +218,11 @@ const csvFields = [
   'updatedAt',
 ];
 export function csv(rows) {
-  const cell = (v) => {
-    let s = String(v ?? '');
-    if (/^\s*[=+\-@]/.test(s)) s = "'" + s;
+  const cell = (v, preserveDigits = false) => {
+    const raw = String(v ?? '');
+    const numericText = preserveDigits && /^\d+$/.test(raw);
+    let s = numericText ? `="${raw}"` : raw;
+    if (!numericText && /^\s*[=+\-@]/.test(s)) s = "'" + s;
     return '"' + s.replaceAll('"', '""') + '"';
   };
   return (
@@ -235,11 +237,16 @@ export function csv(rows) {
                 ? [r.receiptDate, r.receiptTime].filter(Boolean).join(' ')
                 : ['status', 'registrationMethod'].includes(k)
                   ? display(r, k)
-                  : k === 'attachmentName'
-                    ? r.imageStored && r.attachmentKey
-                      ? r.attachmentName || '파일명 확인필요'
-                      : '사진 없음'
-                  : r[k],
+                  : k === 'businessNumber'
+                    ? r.businessNumber || '미확인'
+                    : k === 'approvalNumber'
+                      ? display(r, k)
+                      : k === 'attachmentName'
+                        ? r.imageStored && r.attachmentKey
+                          ? r.attachmentName || '파일명 확인필요'
+                          : '사진 없음'
+                        : r[k],
+              ['businessNumber', 'approvalNumber'].includes(k),
             ),
           )
           .join(','),

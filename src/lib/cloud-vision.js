@@ -29,5 +29,7 @@ export async function recognizeReceipt(file, { signal } = {}) {
     receiptDate: String(payload.receiptDate || '').trim(),
     receiptTime: String(payload.receiptTime || '').trim(),
     location: String(payload.location || '').trim(),
+    businessNumber: String(payload.businessNumber || '').trim(),
+    approvalNumber: String(payload.approvalNumber || '').replace(/\D/g, ''),
   };
 }

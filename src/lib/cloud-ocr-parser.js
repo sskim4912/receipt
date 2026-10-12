@@ -28,6 +28,25 @@ function labeledMerchant(text) {
   return '';
 }
 
+function labeledBusinessNumber(text) {
+  for (const line of text.split(/\r?\n/)) {
+    const match = line.match(/사업자\s*(?:등록\s*)?번호\s*[:：]?\s*([\d -]{10,24})/);
+    const digits = match?.[1]?.replace(/\D/g, '') || '';
+    if (digits.length === 10)
+      return `${digits.slice(0, 3)}-${digits.slice(3, 5)}-${digits.slice(5)}`;
+  }
+  return '';
+}
+
+function labeledApprovalNumber(text) {
+  for (const line of text.split(/\r?\n/)) {
+    const match = line.match(/승인\s*번호\s*[:：]?\s*([\d -]{4,48})/);
+    const digits = match?.[1]?.replace(/\D/g, '') || '';
+    if (digits.length >= 4 && digits.length <= 40) return digits;
+  }
+  return '';
+}
+
 function labeledLocation(text) {
   const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   const label = /(?:\[\s*)?(?:사업장\s*주소|가맹점\s*주소|주소|소재지|사용\s*장소|장소)(?:\s*\])?\s*[:：]?\s*/i;
@@ -119,6 +138,8 @@ export function parseReceiptText(text) {
   );
   const explicitDates = [...new Set(labeledDateLines.flatMap(dateValues))];
   const allDates = dateValues(text);
+  const businessNumber = labeledBusinessNumber(text);
+  const approvalNumber = labeledApprovalNumber(text);
   return {
     merchantName: labeledMerchant(text),
     amount: labeledAmount(text),
@@ -129,5 +150,7 @@ export function parseReceiptText(text) {
         : explicitDates.length === 0 && allDates.length === 1
           ? allDates[0]
           : '',
+    ...(businessNumber ? { businessNumber } : {}),
+    ...(approvalNumber ? { approvalNumber } : {}),
   };
 }
