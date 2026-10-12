@@ -1672,6 +1672,20 @@ function Admin({ onBack }) {
                     삭제
                   </button>
                 </div>
+                <div className="row-extra-details" aria-label="추가 사용내역">
+                  <div>
+                    <span>참석 인원수</span>
+                    <strong>{r.attendeeCount ? `${r.attendeeCount}명` : '—'}</strong>
+                  </div>
+                  <div>
+                    <span>구체적인 사용 목적</span>
+                    <strong>{display(r, 'purpose') || '—'}</strong>
+                  </div>
+                  <div>
+                    <span>사용장소</span>
+                    <strong>{display(r, 'location') || '—'}</strong>
+                  </div>
+                </div>
               </div>
               {expanded === r.receiptId && (
                 <div className="expanded-detail static-detail">
