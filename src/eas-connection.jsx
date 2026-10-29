@@ -1,28 +1,30 @@
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { Modal, ErrorBox } from './ui.jsx';
 import { createEasHandoff, createEasAppUrl, downloadEasHandoff } from './lib/eas-handoff.js';
 
 export function EasConnection({ receipt, onClose }) {
   const [launchMessage, setLaunchMessage] = useState('');
   const [launchError, setLaunchError] = useState('');
-  const launcher = useRef(null);
-  function openAssistant() {
+  function openAssistant(event) {
     try {
       // Generate at the click, so the five-minute PC handoff is always fresh.
       const url = createEasAppUrl(receipt);
-      // Keep the admin screen even if this PC blocks external applications.
-      launcher.current.src = url;
+      // Let the user's native link activation open the registered application.
+      // A separate target preserves the admin page if the browser blocks it.
+      event.currentTarget.href = url;
       setLaunchError('');
       setLaunchMessage(
         '브라우저에서 프로그램 열기를 허용해주세요. 반응이 없으면 아래 최초 1회 PC 설정을 진행하세요.',
       );
     } catch (err) {
+      event.preventDefault();
       setLaunchError(err.message);
     }
   }
-  let payload, error;
+  let payload, error, appUrl;
   try {
     payload = createEasHandoff(receipt);
+    if (payload.match.approvalNumber) appUrl = createEasAppUrl(receipt);
   } catch (err) {
     error = err.message;
   }
@@ -62,15 +64,37 @@ export function EasConnection({ receipt, onClose }) {
         기존 처리상태는 변경하지 않습니다.
       </p>
       <ErrorBox message={launchError} />
-      <iframe ref={launcher} title="EAS PC 프로그램 연결" hidden />
       {launchMessage && <p role="status">{launchMessage}</p>}
-      <button
-        className="button primary full"
-        disabled={!payload?.match.approvalNumber}
-        onClick={openAssistant}
-      >
-        EAS 보조 프로그램으로 연결
-      </button>
+      {appUrl ? (
+        <a
+          className="button primary full"
+          role="button"
+          href={appUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={openAssistant}
+          onKeyDown={(event) => {
+            if (event.key === ' ') {
+              event.preventDefault();
+              event.currentTarget.click();
+            }
+          }}
+        >
+          EAS 보조 프로그램으로 연결
+        </a>
+      ) : (
+        <button className="button primary full" disabled>
+          EAS 보조 프로그램으로 연결
+        </button>
+      )}
+      <p>
+        실행되지 않으면 먼저{' '}
+        <a href="aurora-eas://check" target="_blank" rel="noopener noreferrer">
+          PC 연결 상태 확인
+        </a>
+        을 눌러주세요. ‘PC 연결 프로그램이 정상 등록됐습니다’ 창이 뜨면 설치된 상태입니다. 앱을 찾을
+        수 없다는 안내가 나오면 아래 최초 1회 PC 설정을 진행하세요.
+      </p>
       <details>
         <summary>최초 1회 PC 설정 · 연결 도움말</summary>
         <p>

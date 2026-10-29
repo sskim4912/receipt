@@ -59,17 +59,23 @@ test('관리자 PC 연결과 파일 대체 방식은 한 건만 전달하고 Fir
   const modal = page.getByRole('dialog', { name: '전자전표 연결', exact: true });
   await expect(modal).toContainText('현장 인원 식사');
   await expect(modal).toContainText('저장은 직접');
-  const cdp = await page.context().newCDPSession(page);
-  await cdp.send('Page.enable');
-  let appUrl = '';
-  cdp.on('Page.frameRequestedNavigation', ({ url }) => {
-    if (url.startsWith('aurora-eas:')) appUrl = url;
-  });
+  const appLink = modal.getByRole('button', { name: 'EAS 보조 프로그램으로 연결', exact: true });
+  await expect(appLink).toHaveAttribute('target', '_blank');
+  await expect(appLink).toHaveAttribute('rel', 'noopener noreferrer');
+  await expect(modal.locator('iframe')).toHaveCount(0);
+  const checkLink = modal.getByRole('link', { name: 'PC 연결 상태 확인', exact: true });
+  await expect(checkLink).toHaveAttribute('href', 'aurora-eas://check');
+  await expect(checkLink).toHaveAttribute('target', '_blank');
   let downloads = 0;
   page.on('download', () => downloads++);
-  await modal.getByRole('button', { name: 'EAS 보조 프로그램으로 연결', exact: true }).click();
+  const popupPromise = page.waitForEvent('popup');
+  await appLink.click();
+  const popup = await popupPromise;
+  await expect(page).toHaveURL(/http:\/\/127\.0\.0\.1:3101\/$/);
   await expect(modal.getByRole('status')).toContainText('프로그램 열기');
-  await expect.poll(() => appUrl).toMatch(/^aurora-eas:\/\/connect\/[A-Za-z0-9_-]+$/);
+  const appUrl = await appLink.getAttribute('href');
+  expect(appUrl).toMatch(/^aurora-eas:\/\/connect\/[A-Za-z0-9_-]+$/);
+  await popup.close();
   const appPayload = JSON.parse(
     Buffer.from(appUrl.split('/').at(-1), 'base64url').toString('utf8'),
   );
