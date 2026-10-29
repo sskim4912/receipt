@@ -11,7 +11,7 @@ from unittest.mock import patch
 from eas_assistant import INPUTS, SafetyStop, verify_transaction
 from eas_receipt_bridge import (
     Candidate, capture_registration, connect, detail_date, find_candidate,
-    last_four, read_detail, verify_proof,
+    last_four, read_detail, verify_proof, detail_ready, wait_detail_ready,
 )
 from test_eas_assistant import sample
 
@@ -228,6 +228,58 @@ class BridgeTests(unittest.TestCase):
         _, observed = read_detail(driver, data, proof)
         verify_transaction(data, observed)
         self.assertEqual(observed["approvalNumber"], "00123456")
+
+    def test_detail_not_ready_until_identity_and_editable_inputs_are_loaded(self):
+        driver = Driver()
+        driver.open_detail()
+        amount = driver.detail.xpath('//tr[th//*[text()="사용금액"]]/td/span')[0]
+        original = amount.text
+        amount.text = ''
+        self.assertFalse(detail_ready(driver))
+        amount.text = original
+        field = driver.detail.xpath('//input[@name="useName"]')[0]
+        field.set('disabled', 'disabled')
+        self.assertFalse(detail_ready(driver))
+        field.attrib.pop('disabled')
+        self.assertTrue(detail_ready(driver))
+        self.assertFalse(driver.edited)
+
+    def test_loading_wait_retries_without_writing_and_ambiguous_fields_stop(self):
+        driver = Driver()
+        original = driver.find_elements
+        loading = []
+        def delayed(by, selector):
+            if driver.dom is driver.detail and by == 'xpath' and not loading:
+                loading.append(True)
+                self.assertFalse(driver.edited)
+                return []
+            return original(by, selector)
+        driver.find_elements = delayed
+        with patch('selenium.webdriver.common.action_chains.ActionChains', Actions), \
+             redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+            self.assertEqual(connect(sample(), Baseline(driver), lambda *_: True), 0)
+        self.assertTrue(loading)
+        self.assertEqual(set(driver.edited), {'useName', 'empCnt', 'resn'})
+        driver.detail.append(copy.deepcopy(driver.detail.xpath('//input[@name="useName"]')[0]))
+        with self.assertRaises(SafetyStop):
+            wait_detail_ready(driver, timeout=0.01)
+
+    def test_mismatch_shows_safe_reason_before_browser_maintenance_without_input(self):
+        driver = Driver()
+        driver.detail.xpath('//tr[th//*[text()="승인번호"]]/td/span')[0].text = '99999999'
+        baseline = Baseline(driver)
+        messages = []
+        def on_stop(message):
+            self.assertNotIn('keep_browser_open', baseline.calls)
+            messages.append(message)
+        with patch('selenium.webdriver.common.action_chains.ActionChains', Actions), \
+             redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+            self.assertEqual(connect(sample(), baseline, lambda *_: True, on_stop=on_stop), 1)
+        self.assertEqual(len(messages), 1)
+        self.assertIn('approvalNumber', messages[0])
+        self.assertIn('상세 승인번호', messages[0])
+        self.assertFalse(driver.edited)
+        self.assertEqual(baseline.calls[-1], 'keep_browser_open')
 
     def test_detail_mismatch_and_wrong_approval_stop(self):
         for label, value in (("사용금액", "25,001"), ("사용일자", "2026.10.29 18:32:10"), ("카드번호", "1234-5678-XXXX-9999"), ("승인번호", "123456")):
