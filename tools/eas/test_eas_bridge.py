@@ -12,6 +12,7 @@ from eas_assistant import INPUTS, SafetyStop, verify_transaction
 from eas_receipt_bridge import (
     Candidate, capture_registration, connect, detail_date, find_candidate,
     last_four, read_detail, verify_proof, detail_ready, wait_detail_ready,
+    ResponsiveBaseline,
 )
 from test_eas_assistant import sample
 
@@ -176,6 +177,119 @@ class BaselineIntegrityTests(unittest.TestCase):
         self.assertEqual(last_four("1234-5678-XXXX-0123"), "0123")
         with self.assertRaises(SafetyStop):
             last_four("1234567812340123")
+
+
+class Clock:
+    def __init__(self):
+        self.now = 0.0
+
+    def monotonic(self):
+        return self.now
+
+    def sleep(self, seconds):
+        self.now += seconds
+
+
+@unittest.skipUnless(HAS_DOM and HAS_SELENIUM, 'lxml and Selenium required')
+class ResponsiveTests(unittest.TestCase):
+    def setUp(self):
+        self.driver = Driver()
+        self.baseline = Baseline(self.driver)
+        self.baseline.NOTICE_NEXT_WAIT = 2
+        self.baseline.MAX_NOTICE_COUNT = 20
+        self.clock = Clock()
+        self.popups = []
+        self.baseline.get_visible_notice_popups = lambda _: self.popups
+        self.adapter = ResponsiveBaseline(self.baseline)
+
+    def notices(self):
+        with patch('eas_receipt_bridge.time.monotonic', self.clock.monotonic), \
+             patch('eas_receipt_bridge.time.sleep', self.clock.sleep):
+            return self.adapter.close_all_startup_notices(self.driver)
+
+    def test_edge_and_login_functions_are_delegated_unchanged(self):
+        for name in ('start_edge', 'open_sso_login', 'wait_for_login', 'keep_browser_open'):
+            self.assertEqual(getattr(self.adapter, name), getattr(self.baseline, name))
+
+    def test_grid_readiness_has_no_unconditional_four_second_sleep(self):
+        self.driver.get = lambda url: self.assertEqual(url, self.driver.current_url)
+        with patch('eas_receipt_bridge.time.sleep', side_effect=AssertionError('Fixed sleep')):
+            self.assertTrue(self.adapter.open_eas_card_list(self.driver))
+        self.assertFalse(self.driver.edited)
+
+    def test_redirect_outside_eas_stops(self):
+        self.driver.get = lambda _: setattr(self.driver, 'current_url', 'https://sso.gsenc.com/login')
+        with self.assertRaises(SafetyStop):
+            self.adapter.open_eas_card_list(self.driver)
+        self.assertFalse(self.driver.edited)
+
+    def test_empty_notices_observe_quiet_window_instead_of_eight_seconds(self):
+        self.assertTrue(self.notices())
+        self.assertGreaterEqual(self.clock.now, 2)
+        self.assertLess(self.clock.now, 2.3)
+        self.assertFalse(self.driver.edited)
+
+    def test_late_notice_resets_quiet_window_and_uses_original_close(self):
+        popup = type('Popup', (), {'is_displayed': lambda _: bool(self.popups)})()
+        appeared = []
+        closed = []
+        def discover(_):
+            if self.clock.now >= 1.8 and not appeared:
+                appeared.append(True)
+                self.popups = [popup]
+            return self.popups
+        def close(driver):
+            self.assertIs(driver, self.driver)
+            closed.append(True)
+            self.popups = []
+            return True
+        self.baseline.get_visible_notice_popups = discover
+        self.baseline.close_one_notice = close
+        self.assertTrue(self.notices())
+        self.assertEqual(closed, [True])
+        self.assertGreaterEqual(self.clock.now, 3.8)
+        self.assertFalse(self.driver.edited)
+
+    def test_popup_close_failure_stops(self):
+        self.popups = [object()]
+        self.baseline.close_one_notice = lambda _: False
+        with self.assertRaises(SafetyStop):
+            self.notices()
+        self.assertFalse(self.driver.edited)
+
+    def test_unknown_dialog_stops_after_quiet_interval(self):
+        from lxml import html
+        self.driver.list.append(html.fromstring('<div data-popup="true">Unknown dialog</div>'))
+        with self.assertRaises(SafetyStop):
+            self.notices()
+        self.assertFalse(self.driver.edited)
+
+    def test_popup_limit_stops_without_infinite_loop(self):
+        self.baseline.MAX_NOTICE_COUNT = 0
+        self.popups = [object()]
+        with self.assertRaises(SafetyStop):
+            self.notices()
+
+    def test_production_entry_wraps_only_post_login_flow(self):
+        from eas_receipt_bridge import run_connection
+        with patch('eas_receipt_bridge.connect', return_value=0) as connect_mock, \
+             patch('eas_receipt_bridge.importlib.import_module', return_value=self.baseline):
+            self.assertEqual(run_connection(sample()), 0)
+        adapted = connect_mock.call_args.args[1]
+        self.assertIsInstance(adapted, ResponsiveBaseline)
+        self.assertIs(adapted.baseline, self.baseline)
+
+    def test_responsive_flow_still_checks_transaction_and_only_three_fields(self):
+        self.driver.get = lambda url: self.assertEqual(url, self.driver.current_url)
+        with patch('selenium.webdriver.common.action_chains.ActionChains', Actions), \
+             patch('eas_receipt_bridge.time.monotonic', self.clock.monotonic), \
+             patch('eas_receipt_bridge.time.sleep', self.clock.sleep), \
+             redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+            self.assertEqual(connect(sample(), self.adapter, lambda *_: True), 0)
+        self.assertEqual(set(self.driver.edited), {'useName', 'empCnt', 'resn'})
+        self.assertNotIn('save', self.driver.clicked)
+        self.assertEqual(self.baseline.calls, ['start_edge', 'open_sso_login',
+                         'wait_for_login', 'show_final_status', 'keep_browser_open'])
 
 
 @unittest.skipUnless(HAS_DOM and HAS_SELENIUM, "lxml and Selenium required for fixture DOM tests")
