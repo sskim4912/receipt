@@ -30,6 +30,7 @@ import {
 } from './lib/domain.js';
 import { makeGate, verifyGate } from './lib/admin-gate.js';
 import { Icon, Modal, Field, ErrorBox } from './ui.jsx';
+import { EasConnection } from './eas-connection.jsx';
 import gsLogo from './assets/gs-construction-logo.png';
 import './styles.css';
 const repo = new ReceiptRepository(new FirestoreRest(firebaseConfig));
@@ -1243,6 +1244,7 @@ function Admin({ onBack }) {
     [attachment, setAttachment] = useState(null),
     [selectedIds, setSelectedIds] = useState([]),
     [selectedPhotoIds, setSelectedPhotoIds] = useState([]),
+    [easReceipt, setEasReceipt] = useState(null),
     [downloadingPhotos, setDownloadingPhotos] = useState(false);
   const lock = useRef(false);
   const rows = filterReceipts(all, applied);
@@ -1700,6 +1702,13 @@ function Admin({ onBack }) {
                     <Detail r={r} onViewReceipt={setAttachment} />
                     <div className="status-actions">
                       <span>처리상태 변경</span>
+                      <button
+                        className="button secondary small"
+                        disabled={busy}
+                        onClick={() => setEasReceipt(r)}
+                      >
+                        전자전표 연결
+                      </button>
                       {['manual_review', 'team_review', 'completed'].includes(r.status) && (
                         <button
                           className="button secondary small"
@@ -1752,6 +1761,7 @@ function Admin({ onBack }) {
           ))}
         </div>
       </section>
+      {easReceipt && <EasConnection receipt={easReceipt} onClose={() => setEasReceipt(null)} />}
       {attachment && (
         <Modal title="영수증 첨부 사진" wide onClose={() => setAttachment(null)}>
           <img
