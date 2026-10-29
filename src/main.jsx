@@ -31,6 +31,8 @@ import {
 import { makeGate, verifyGate } from './lib/admin-gate.js';
 import { Icon, Modal, Field, ErrorBox } from './ui.jsx';
 import { EasConnection } from './eas-connection.jsx';
+import { AdminSortButton, AdminSortHeader } from './admin-sort.jsx';
+import { ADMIN_SORT_COLUMNS, inputStatusLabel, sortAdminReceipts } from './lib/admin-sort.js';
 import gsLogo from './assets/gs-construction-logo.png';
 import './styles.css';
 const repo = new ReceiptRepository(new FirestoreRest(firebaseConfig));
@@ -39,7 +41,7 @@ function Badge({ status, inputSource, showInputSource = false }) {
   const source = INPUT_SOURCES[inputSource] ? inputSource : 'manual';
   const label =
     showInputSource && status === 'manual_review'
-      ? INPUT_SOURCES[source]
+      ? inputStatusLabel({ status, inputSource })
       : STATUSES[status] || '확인필요';
   return (
     <span
@@ -1246,8 +1248,9 @@ function Admin({ onBack }) {
     [selectedPhotoIds, setSelectedPhotoIds] = useState([]),
     [easReceipt, setEasReceipt] = useState(null),
     [downloadingPhotos, setDownloadingPhotos] = useState(false);
+  const [sort, setSort] = useState(null);
   const lock = useRef(false);
-  const rows = filterReceipts(all, applied);
+  const rows = sortAdminReceipts(filterReceipts(all, applied), sort);
   const selectedPhotoCount = rows.filter(
     (r) => selectedPhotoIds.includes(r.receiptId) && r.imageStored && r.attachmentKey,
   ).length;
@@ -1534,35 +1537,36 @@ function Admin({ onBack }) {
             처리 중...
           </p>
         )}
+        <div className="mobile-sort-controls" role="group" aria-label="등록내역 정렬">
+          {ADMIN_SORT_COLUMNS.map((column) => (
+            <AdminSortButton key={column[0]} column={column} sort={sort} onSort={setSort} />
+          ))}
+        </div>
         <div className="receipt-table" role="table" aria-label="등록 영수증">
           <div className="table-head" role="row">
             <div className="table-head-open">
-              {['일자', '사용자', '사용처', '금액', '승인번호'].map((t) => (
-                <span role="columnheader" key={t}>
-                  {t}
-                </span>
+              {ADMIN_SORT_COLUMNS.slice(0, 5).map((column) => (
+                <AdminSortHeader key={column[0]} column={column} sort={sort} onSort={setSort} />
               ))}
             </div>
             <span role="columnheader" className="photo-column-head">
               <input
                 aria-label="현재 목록 사진 전체 선택"
                 type="checkbox"
-                checked={rows.length > 0 && rows.every((r) => selectedPhotoIds.includes(r.receiptId))}
+                checked={
+                  rows.length > 0 && rows.every((r) => selectedPhotoIds.includes(r.receiptId))
+                }
                 disabled={busy || downloadingPhotos || rows.length === 0}
                 onChange={(e) =>
-                  setSelectedPhotoIds(
-                    e.target.checked
-                      ? rows.map((r) => r.receiptId)
-                      : [],
-                  )
+                  setSelectedPhotoIds(e.target.checked ? rows.map((r) => r.receiptId) : [])
                 }
               />
               사진 전체
             </span>
-            <span role="columnheader" className="input-status-head">
-              입력상태
-            </span>
-            <span role="columnheader">전표 처리</span>
+            <div className="input-status-head">
+              <AdminSortHeader column={ADMIN_SORT_COLUMNS[5]} sort={sort} onSort={setSort} />
+            </div>
+            <AdminSortHeader column={ADMIN_SORT_COLUMNS[6]} sort={sort} onSort={setSort} />
             <span role="columnheader" className="delete-column-head">
               <input
                 aria-label="현재 목록 전체 선택"
