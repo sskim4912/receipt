@@ -28,6 +28,25 @@ class ProtocolTests(unittest.TestCase):
     def test_unicode_roundtrip(self):
         self.assertEqual(protocol.parse_app_url(url(self.data)), self.data)
 
+    def test_shell_normalization_preserves_payload_case_and_allows_single_slash(self):
+        original = url(self.data)
+        for address in (original + '/', original.replace('aurora-eas://connect/', 'AURORA-EAS://CONNECT/')):
+            self.assertEqual(protocol.parse_app_url(address), self.data)
+
+    def test_check_variants_never_open_edge_or_take_connection_lock(self):
+        for address in ('aurora-eas://check', 'aurora-eas://check/', 'AURORA-EAS://CHECK/'):
+            with patch.object(sys, 'argv', ['eas_protocol.py', address]), \
+                 patch.object(protocol, 'show_message') as show, \
+                 patch.object(protocol, 'SingleConnection') as lock, \
+                 patch.object(protocol, 'handle_url') as handle:
+                self.assertEqual(protocol.main(), 0)
+                show.assert_called_once()
+                lock.assert_not_called()
+                handle.assert_not_called()
+        for address in ('aurora-eas://check//', 'aurora-eas://check?x=1',
+                        'aurora-eas://check/#secret', 'https://check/', 'aurora-eas://check/extra'):
+            self.assertFalse(protocol.is_check_url(address))
+
     def test_javascript_encoder_matches_python_receiver(self):
         script = '''import {createEasAppUrl} from './src/lib/eas-handoff.js';
           console.log(createEasAppUrl({receiptId:'cross-runtime',version:1,
@@ -42,7 +61,7 @@ class ProtocolTests(unittest.TestCase):
 
     def test_rejects_bad_urls_expiry_extra_fields_and_missing_approval(self):
         valid = url(self.data)
-        for bad in ('https://connect/abc', valid + '?extra=1', valid + '#x', valid + '/',
+        for bad in ('https://connect/abc', valid + '?extra=1', valid + '#x', valid + '//',
                     valid + '" --help', valid.replace('connect/', 'save/'),
                     'aurora-eas://connect/%%%%', 'aurora-eas://connect/' + 'a' * 12000,
                     'aurora-eas://connect/bm90LWpzb24'):

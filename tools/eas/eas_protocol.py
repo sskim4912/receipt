@@ -16,9 +16,15 @@ SCHEME = 'aurora-eas'
 MAX_URL = 12000
 
 
+def is_check_url(url):
+    # Shell/browser URL canonicalization may add the empty-path slash. Scheme
+    # and host are case-insensitive; receipt payload paths remain untouched.
+    return isinstance(url, str) and re.fullmatch(r'aurora-eas://check/?', url, re.IGNORECASE) is not None
+
+
 def parse_app_url(url, now=None):
     require(isinstance(url, str) and len(url) <= MAX_URL, '연결 주소 길이가 잘못되었습니다.')
-    match = re.fullmatch(r'aurora-eas://connect/([A-Za-z0-9_-]+)', url)
+    match = re.fullmatch(r'aurora-eas://connect/([A-Za-z0-9_-]+)/?', url, re.IGNORECASE)
     require(match, '지원하지 않는 연결 주소입니다. 관리자 화면에서 다시 연결하세요.')
     encoded = match.group(1)
     try:
@@ -89,7 +95,7 @@ def handle_url(url, confirm=confirm_desktop, run=run_connection):
 def main():
     try:
         require(len(sys.argv) == 2, '관리자 화면의 전자전표 연결 버튼으로 실행하세요.')
-        if sys.argv[1] == 'aurora-eas://check':
+        if is_check_url(sys.argv[1]):
             show_message('PC 연결 프로그램이 정상 등록됐습니다. 관리자 화면에서 영수증을 연결하세요.')
             return 0
         with SingleConnection():
