@@ -66,3 +66,17 @@ export function downloadEasHandoff(payload) {
   link.click();
   setTimeout(() => URL.revokeObjectURL(url), 30_000);
 }
+
+// This is an OS application link, never an HTTP request or a command string.
+export function createEasAppUrl(receipt) {
+  const payload = createEasHandoff(receipt);
+  if (!payload.match.approvalNumber) throw new Error('승인번호를 먼저 확인해주세요.');
+  const bytes = new TextEncoder().encode(JSON.stringify(payload));
+  const encoded = btoa(Array.from(bytes, (byte) => String.fromCharCode(byte)).join(''))
+    .replaceAll('+', '-')
+    .replaceAll('/', '_')
+    .replace(/=+$/, '');
+  const url = `aurora-eas://connect/${encoded}`;
+  if (url.length > 12000) throw new Error('연결 정보가 너무 깁니다. 사용 목적을 확인해주세요.');
+  return url;
+}

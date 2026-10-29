@@ -74,3 +74,19 @@ test('EAS 내보내기는 누락·오류를 거부하고 기존 입력 검증을
   ])
     assert.throws(() => createEasHandoff({ ...receipt, ...change }));
 });
+
+test('PC 연결 URL은 UTF-8을 보존하고 매 클릭 시 새 요청을 만든다', async () => {
+  const { createEasAppUrl } = await import('../src/lib/eas-handoff.js');
+  const url = createEasAppUrl({ ...receipt, password: 'never-transfer' });
+  assert.match(url, /^aurora-eas:\/\/connect\/[A-Za-z0-9_-]+$/);
+  assert.ok(url.length < 12000);
+  const data = JSON.parse(Buffer.from(url.split('/').at(-1), 'base64url').toString('utf8'));
+  assert.equal(data.fields.employeeName, receipt.employeeName);
+  assert.equal(data.fields.purpose, receipt.purpose);
+  assert.equal(data.match.approvalNumber, '00123456');
+  assert.ok(Math.abs(Date.now() - Date.parse(data.exportedAt)) < 1000);
+  assert.equal(JSON.stringify(data).includes('never-transfer'), false);
+  assert.throws(() =>
+    createEasAppUrl({ ...receipt, approvalState: 'unreadable', approvalNumber: null }),
+  );
+});

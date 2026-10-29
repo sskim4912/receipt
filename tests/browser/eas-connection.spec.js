@@ -3,7 +3,9 @@ import { readFile } from 'node:fs/promises';
 import { FakeFirestore } from '../fake-firestore.js';
 import { makeGate } from '../../src/lib/admin-gate.js';
 
-test('관리자 상세에서 한 건만 내보내고 Firestore·기존 상태를 변경하지 않는다', async ({ page }) => {
+test('관리자 PC 연결과 파일 대체 방식은 한 건만 전달하고 Firestore·상태를 변경하지 않는다', async ({
+  page,
+}) => {
   const fake = new FakeFirestore();
   fake.seed('appSettings/adminGate', await makeGate('test-only-password'));
   const row = {
@@ -57,6 +59,30 @@ test('관리자 상세에서 한 건만 내보내고 Firestore·기존 상태를
   const modal = page.getByRole('dialog', { name: '전자전표 연결', exact: true });
   await expect(modal).toContainText('현장 인원 식사');
   await expect(modal).toContainText('저장은 직접');
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Page.enable');
+  let appUrl = '';
+  cdp.on('Page.frameRequestedNavigation', ({ url }) => {
+    if (url.startsWith('aurora-eas:')) appUrl = url;
+  });
+  let downloads = 0;
+  page.on('download', () => downloads++);
+  await modal.getByRole('button', { name: 'EAS 보조 프로그램으로 연결', exact: true }).click();
+  await expect(modal.getByRole('status')).toContainText('프로그램 열기');
+  await expect.poll(() => appUrl).toMatch(/^aurora-eas:\/\/connect\/[A-Za-z0-9_-]+$/);
+  const appPayload = JSON.parse(
+    Buffer.from(appUrl.split('/').at(-1), 'base64url').toString('utf8'),
+  );
+  expect(appPayload.receiptId).toBe('eas-row');
+  expect(appPayload.fields.purpose).toBe(row.purpose);
+  expect(appPayload.match.approvalNumber).toBe('00123456');
+  expect(appPayload).not.toHaveProperty('voucherStatus');
+  expect(downloads).toBe(0);
+  expect(writes).toBe(0);
+  await modal.getByText('최초 1회 PC 설정 · 연결 도움말', { exact: true }).click();
+  const installer = await page.request.get('/downloads/aurora-eas-windows.zip');
+  expect(installer.ok()).toBe(true);
+  expect((await installer.body()).subarray(0, 4).toString('hex')).toBe('504b0304');
   const download = page.waitForEvent('download');
   await modal.getByRole('button', { name: 'EAS 연결 파일 다운로드', exact: true }).click();
   const file = await download;
@@ -82,7 +108,7 @@ test('관리자 상세에서 한 건만 내보내고 Firestore·기존 상태를
   await page.getByRole('button', { name: '전자전표 연결', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('참석 인원수');
   await expect(
-    page.getByRole('button', { name: 'EAS 연결 파일 다운로드', exact: true }),
+    page.getByRole('button', { name: 'EAS 보조 프로그램으로 연결', exact: true }),
   ).toBeDisabled();
   expect(writes).toBe(0);
 });
