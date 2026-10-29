@@ -14,6 +14,12 @@ def build():
     destination = ROOT / 'public/downloads/aurora-eas-windows.zip'
     destination.parent.mkdir(parents=True, exist_ok=True)
     contents = {name: (HERE / name).read_bytes() for name in FILES}
+    # cmd.exe requires Windows line endings, regardless of the build OS or Git's
+    # checkout settings. Keep the entry script ASCII to avoid code-page parsing.
+    for name, data in list(contents.items()):
+        if name.endswith('.cmd'):
+            data.decode('ascii')
+            contents[name] = data.replace(b'\r\n', b'\n').replace(b'\n', b'\r\n')
     # Ensure the distributed files are compilable; never execute the corporate source.
     for name, data in contents.items():
         if name.endswith('.py'):
@@ -28,6 +34,9 @@ def build():
     with zipfile.ZipFile(destination) as archive:
         assert archive.testzip() is None
         assert 'eas_card_automation.py' not in archive.namelist()
+        batch = archive.read('INSTALL.cmd')
+        assert b'\n' not in batch.replace(b'\r\n', b'')
+        batch.decode('ascii')
     print(destination)
     print('SHA256:', hashlib.sha256(destination.read_bytes()).hexdigest())
 

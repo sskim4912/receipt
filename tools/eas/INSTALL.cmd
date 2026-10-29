@@ -1,14 +1,16 @@
 @echo off
-chcp 65001 >nul
+setlocal
 where py >nul 2>nul
-if not errorlevel 1 (
-  py -3 "%~dp0install_windows.py"
-) else (
-  where python >nul 2>nul
-  if errorlevel 1 (
-    echo Python을 찾지 못했습니다. 기존 PyCharm 프로젝트의 Python으로 install_windows.py를 실행하세요.
-  ) else (
-    python "%~dp0install_windows.py"
-  )
-)
+if errorlevel 1 goto use_python
+py -3 "%~dp0install_windows.py"
+goto finished
+:use_python
+where python >nul 2>nul
+if errorlevel 1 goto missing_python
+python "%~dp0install_windows.py"
+goto finished
+:missing_python
+echo Python launcher not found. Run install_windows.py with your existing PyCharm Python.
+:finished
 pause
+exit /b

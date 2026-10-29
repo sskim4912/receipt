@@ -98,9 +98,10 @@ export function EasConnection({ receipt, onClose }) {
       <details>
         <summary>최초 1회 PC 설정 · 연결 도움말</summary>
         <p>
-          업무용 Windows PC에서 아래 설치 파일의 압축을 풀고 INSTALL.cmd를 실행하세요. 기존에 정상
-          작동한 eas_card_automation.py를 선택합니다. 이후에는 연결 파일을 내려받거나 선택할 필요가
-          없습니다. 다른 영수증을 연결할 때는 이전 연결로 열린 Edge 창을 먼저 닫아주세요.
+          업무용 Windows PC에서 아래 설치 파일의 압축을 풀고 INSTALL.cmd를 한 번 실행하세요. 기존
+          기준 코드와 Python 환경을 자동으로 찾아 연결을 등록합니다. 기준 코드를 찾지 못한 경우에만
+          파일을 한 번 선택합니다. 이후에는 다시 설치하거나 연결 파일을 선택할 필요가 없습니다. 다른
+          영수증을 연결할 때는 이전 연결로 열린 Edge 창을 먼저 닫아주세요.
         </p>
         <a className="button" href="./downloads/aurora-eas-windows.zip" download>
           PC 연결 설치 파일 다운로드
