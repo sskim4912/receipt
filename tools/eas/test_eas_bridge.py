@@ -13,6 +13,7 @@ from eas_receipt_bridge import (
     Candidate, capture_registration, connect, detail_date, find_candidate,
     last_four, read_detail, verify_proof, detail_ready, wait_detail_ready,
     ResponsiveBaseline,
+    find_candidates, confirmed_transaction_payload, comparison_rows,
 )
 from test_eas_assistant import sample
 
@@ -257,6 +258,25 @@ class ResponsiveTests(unittest.TestCase):
             self.notices()
         self.assertFalse(self.driver.edited)
 
+    def test_stacked_notices_wait_only_for_the_notice_just_closed(self):
+        class Popup:
+            visible = True
+            def is_displayed(self):
+                return self.visible
+        lower, upper = Popup(), Popup()
+        self.popups = [lower, upper]
+        closed = []
+        self.baseline.get_visible_notice_popups = lambda _: [p for p in self.popups if p.visible]
+        def close(_):
+            popup = next(p for p in reversed(self.popups) if p.visible)
+            popup.visible = False
+            closed.append(popup)
+            return True
+        self.baseline.close_one_notice = close
+        self.assertTrue(self.notices())
+        self.assertEqual(closed, [upper, lower])
+        self.assertFalse(self.driver.edited)
+
     def test_unknown_dialog_stops_after_quiet_interval(self):
         from lxml import html
         self.driver.list.append(html.fromstring('<div data-popup="true">Unknown dialog</div>'))
@@ -311,6 +331,68 @@ class BridgeTests(unittest.TestCase):
         row.getparent().append(copy.deepcopy(row))
         with self.assertRaises(SafetyStop):
             find_candidate(driver, sample())
+
+    def test_comparison_accepts_name_difference_but_keeps_original_payload(self):
+        driver = Driver()
+        payload = sample()
+        payload['match']['merchantName'] = '테스트 매장 본점'
+        original = copy.deepcopy(payload)
+        candidates = find_candidates(driver, payload)
+        self.assertEqual(len(candidates), 1)
+        rows = comparison_rows(payload, candidates[0])
+        self.assertEqual([r[2] for r in rows], ['일치', '일치', '표기 다름'])
+        with self.assertRaises(SafetyStop):
+            capture_registration(driver, payload, candidates[0])
+        proof, _ = capture_registration(driver, payload, candidates[0], True)
+        check = confirmed_transaction_payload(payload, proof)
+        self.assertEqual(check['match']['merchantName'], '테스트 매장')
+        self.assertEqual(check['match']['approvalNumber'], payload['match']['approvalNumber'])
+        self.assertEqual(payload, original)
+
+    def test_comparison_flow_name_difference_still_requires_detail_approval(self):
+        for approval, expected in [('00123456', 0), ('99999999', 1)]:
+            driver = Driver()
+            payload = sample()
+            payload['match']['merchantName'] = '테스트 매장 본점'
+            driver.detail.xpath('//tr[th//*[text()="승인번호"]]/td/span')[0].text = approval
+            with patch('selenium.webdriver.common.action_chains.ActionChains', Actions), \
+                 redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+                result = connect(payload, Baseline(driver), lambda *_: True,
+                                 compare=lambda *_: 0)
+            self.assertEqual(result, expected)
+            self.assertEqual(bool(driver.edited), expected == 0)
+            self.assertNotIn('save', driver.clicked)
+
+    def test_multiple_candidates_require_selection_and_recheck_selected_row(self):
+        driver = Driver()
+        payload = sample()
+        row = driver.list.xpath('//tr[@idx="AR9"]')[0]
+        other = copy.deepcopy(row)
+        other.xpath('.//td[contains(@class,"joinStorName")]')[0].text = '다른 표시 매장'
+        row.getparent().append(other)
+        candidates = find_candidates(driver, payload)
+        self.assertEqual(len(candidates), 2)
+        proof, _ = capture_registration(driver, payload, candidates[1], True)
+        self.assertEqual(dict(proof.values)['merchantName'], '다른 표시 매장')
+        other.xpath('.//td[contains(@class,"useAmt")]')[0].text = '25,001'
+        with self.assertRaises(SafetyStop):
+            capture_registration(driver, payload, candidates[1], True)
+
+    def test_cancel_comparison_never_opens_or_edits(self):
+        driver = Driver()
+        with patch('selenium.webdriver.common.action_chains.ActionChains', Actions), \
+             redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+            self.assertEqual(connect(sample(), Baseline(driver), lambda *_: True,
+                                     compare=lambda *_: None), 1)
+        self.assertIs(driver.dom, driver.list)
+        self.assertFalse(driver.edited)
+
+    def test_comparison_does_not_relax_date_amount_or_provided_card(self):
+        for key, value in [('receiptDate', '2026-10-29'), ('amount', 25001), ('cardLast4', '9999')]:
+            payload = sample()
+            payload['match'][key] = value
+            with self.subTest(key=key), self.assertRaises(SafetyStop):
+                find_candidates(Driver(), payload)
 
     def test_unregistered_or_unknown_status_stop(self):
         for value in ("미등록", "", "N"):

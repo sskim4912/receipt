@@ -79,7 +79,7 @@ class ResponsiveBaseline:
         return True
 
     def close_all_startup_notices(self, driver):
-        from selenium.common.exceptions import StaleElementReferenceException
+        from selenium.common.exceptions import StaleElementReferenceException, TimeoutException
         from selenium.webdriver.support.ui import WebDriverWait
         # The grid is already rendered. Observe a full quiet interval after it
         # and after each known popup, rather than always waiting eight seconds.
@@ -91,20 +91,23 @@ class ResponsiveBaseline:
             if popups:
                 require(closed < self.baseline.MAX_NOTICE_COUNT,
                         '공지가 계속 나타나 자동 처리를 중단했습니다.')
+                # The original closes only the LAST (topmost) visible popup.
+                # Other stacked notices must stay available for the next turn.
+                closing_popup = popups[-1]
                 # Original selector/click handling remains the only dismissal.
                 require(self.baseline.close_one_notice(driver),
                         '기존 코드가 공지를 닫지 못했습니다.')
 
                 def gone(_):
-                    for popup in popups:
-                        try:
-                            if popup.is_displayed():
-                                return False
-                        except StaleElementReferenceException:
-                            pass
-                    return True
+                    try:
+                        return not closing_popup.is_displayed()
+                    except StaleElementReferenceException:
+                        return True
 
-                WebDriverWait(driver, 5, poll_frequency=0.2).until(gone)
+                try:
+                    WebDriverWait(driver, 5, poll_frequency=0.2).until(gone)
+                except TimeoutException:
+                    raise SafetyStop('방금 닫은 공지창이 사라지지 않았습니다. 공지창 상태를 확인해주세요.') from None
                 closed += 1
                 require(closed < self.baseline.MAX_NOTICE_COUNT,
                         '공지가 최대 처리 개수에 도달해 자동 처리를 중단했습니다.')
@@ -211,11 +214,13 @@ def read_list_row(row):
     return values, found["useDate"]
 
 
-def matches_list(payload, values):
+def matches_list(payload, values, compare_merchant=True):
     expected = payload["match"]
     if values["receiptDate"] != expected["receiptDate"] or values["amount"] != expected["amount"]:
         return False
     for key in ("cardLast4", "merchantName"):
+        if key == 'merchantName' and not compare_merchant:
+            continue
         if expected[key] is not None and normalized(key, expected[key]) != normalized(key, values[key]):
             return False
     return True
@@ -235,9 +240,10 @@ class RegistrationProof:
     receipt_version: int
     match_values: tuple
     captured_at: float
+    merchant_difference_confirmed: bool = False
 
 
-def find_candidate(driver, payload):
+def find_candidates(driver, payload):
     guard_screen(driver)
     require(urlsplit(driver.current_url).path == "/ep/cc/vouc/EpCcVouc0001", "EAS 사용내역 목록 화면이 아닙니다.")
     grid = only_visible(driver, "css selector", GRID_SELECTOR, "사용내역 목록")
@@ -246,9 +252,15 @@ def find_candidate(driver, payload):
     candidates = []
     for row in rows:
         values, _ = read_list_row(row)
-        if matches_list(payload, values):
+        if matches_list(payload, values, compare_merchant=False):
             candidates.append(Candidate(row, tuple(sorted(values.items()))))
-    require(candidates, "현재 표시된 목록에서 일치하는 거래가 없습니다. EAS에서 검색 범위를 좁히고 다시 실행하세요.")
+    require(candidates, "표시된 목록에 사용일자·금액·제공된 카드 끝 4자리가 일치하는 거래가 없습니다.")
+    return candidates
+
+
+def find_candidate(driver, payload):
+    candidates = [c for c in find_candidates(driver, payload) if matches_list(payload, dict(c.values))]
+    require(candidates, '현재 표시된 목록에서 일치하는 거래가 없습니다.')
     require(len(candidates) == 1, "같은 조건의 후보가 여러 개입니다. 임의 선택하지 않습니다. 목록 검색으로 대상을 좁히세요.")
     candidate = candidates[0]
     registration = dict(candidate.values)["registration"]
@@ -257,14 +269,21 @@ def find_candidate(driver, payload):
     return candidate
 
 
-def capture_registration(driver, payload, candidate):
+def capture_registration(driver, payload, candidate, merchant_difference_confirmed=False):
     # Re-read after the user has confirmed. A refresh/reorder/change is not trusted.
-    current = find_candidate(driver, payload)
+    candidates = find_candidates(driver, payload)
+    selected = [c for c in candidates if c.row == candidate.row and c.values == candidate.values]
+    require(len(selected) == 1, '확인 중 선택한 거래가 바뀌었습니다. 입력하지 않습니다.')
+    current = selected[0]
+    require(matches_list(payload, dict(current.values), compare_merchant=not merchant_difference_confirmed),
+            '거래처 표기 차이에 대한 사용자 확인이 없습니다.')
+    require(dict(current.values)['registration'] == 'Y', '업체등록 Y 확인이 필요합니다.')
     require(current.row == candidate.row and current.values == candidate.values,
             "확인 중 목록 거래가 바뀌었습니다. 입력하지 않습니다.")
     _, date_cell = read_list_row(current.row)
     proof = RegistrationProof(current.values, payload["receiptId"], payload["receiptVersion"],
-                              tuple(sorted(payload["match"].items())), time.monotonic())
+                              tuple(sorted(payload["match"].items())), time.monotonic(),
+                              merchant_difference_confirmed)
     return proof, date_cell
 
 
@@ -274,8 +293,20 @@ def verify_proof(payload, proof):
     require(proof.receipt_id == payload["receiptId"] and proof.receipt_version == payload["receiptVersion"]
             and proof.match_values == tuple(sorted(payload["match"].items())), "연결 파일이 거래 확인 이후 달라졌습니다.")
     values = dict(proof.values)
-    require(values.get("registration") == "Y" and matches_list(payload, values), "같은 거래의 업체등록 확인이 없습니다.")
+    require(values.get("registration") == "Y" and matches_list(
+        payload, values, compare_merchant=not proof.merchant_difference_confirmed),
+        "같은 거래의 업체등록 확인이 없습니다.")
     return values
+
+
+def confirmed_transaction_payload(payload, proof):
+    """Use the explicitly confirmed EAS name only in local verification.
+
+    The original handoff, receipt data and all mandatory identity fields remain
+    unchanged. Proof validation binds this exception to this row and receipt.
+    """
+    values = verify_proof(payload, proof)
+    return {**payload, 'match': {**payload['match'], 'merchantName': values['merchantName']}}
 
 
 def read_detail(driver, payload, proof):
@@ -381,7 +412,164 @@ def choose_file():
     return path
 
 
-def connect(payload, baseline, confirm=confirm_desktop, on_stop=None):
+def comparison_rows(payload, candidate):
+    values = dict(candidate.values)
+    rows = []
+    for key, label in (('receiptDate', '사용일자'), ('amount', '사용금액'), ('merchantName', '거래처')):
+        left, right = values[key], payload['match'][key]
+        equal = right is not None and normalized(key, left) == normalized(key, right)
+        state = '일치' if equal else ('표기 다름' if key == 'merchantName' else '불일치')
+        display = lambda v: f'{v:,}원' if key == 'amount' and v is not None else str(v or '미입력')
+        rows.append((label, display(left), state, display(right), equal))
+    return rows
+
+
+def compare_desktop(payload, candidates, on_ready=None):
+    """One native, modal comparison; all differences live in the center column."""
+    import tkinter as tk
+    from tkinter import ttk
+    from tkinter import font as tkfont
+
+    root = tk.Tk()
+    root.title('Aurora · EAS 거래 확인')
+    root.configure(bg='#F3F6FA')
+    root.minsize(780, 600)
+    root.geometry('940x640')
+    root.attributes('-topmost', True)
+    result = None
+    navy, ink, muted, line = '#005BAB', '#20354B', '#65788C', '#DFE7EF'
+    amber_bg, amber = '#FFF4DB', '#9A5A00'
+    available_fonts = set(tkfont.families(root))
+    family = next((name for name in ('맑은 고딕', 'Malgun Gothic', 'Noto Sans CJK KR', 'Unifont', 'unifont')
+                   if name in available_fonts), 'Arial')
+    font = (family, 10)
+    root.option_add('*Font', font)
+    style = ttk.Style(root)
+    style.configure('Compare.TCombobox', padding=6)
+
+    header = tk.Frame(root, bg=navy, padx=26, pady=18)
+    header.pack(fill='x')
+    tk.Label(header, text='Aurora Project  /  전자전표 연결', bg=navy, fg='#CEE5FF',
+             font=(family, 10)).pack(anchor='w')
+    tk.Label(header, text='동일한 거래가 맞나요?', bg=navy, fg='white',
+             font=(family, 19, 'bold')).pack(anchor='w', pady=(5, 0))
+
+    # Reserve the decision buttons first, including on small/high-DPI screens.
+    footer = tk.Frame(root, bg='white', padx=24, pady=16)
+    footer.pack(side='bottom', fill='x')
+
+    body = tk.Frame(root, bg='#F3F6FA', padx=24, pady=18)
+    body.pack(fill='both', expand=True)
+    tk.Label(body, text='왼쪽 전자전표와 오른쪽 영수증을 비교해 주세요. 차이는 가운데에 표시합니다.',
+             bg='#F3F6FA', fg=muted, anchor='w', wraplength=850).pack(fill='x')
+    choices = [f"후보 {i + 1} · {dict(c.values)['merchantName']} · 카드 끝 {dict(c.values)['cardLast4']}"
+               for i, c in enumerate(candidates)]
+    picker = ttk.Combobox(body, values=choices, state='readonly', style='Compare.TCombobox')
+    picker.pack(fill='x', pady=(12, 14))
+    # Multiple candidates start unselected; never prefer the first or closest name.
+    if len(candidates) == 1:
+        picker.current(0)
+    else:
+        picker.set('날짜·금액이 같은 후보가 여러 건입니다. 직접 선택해 주세요.')
+
+    table = tk.Frame(body, bg=line, padx=1, pady=1)
+    table.pack(fill='both', expand=True)
+    table.columnconfigure(0, weight=1, uniform='side')
+    table.columnconfigure(1, weight=0, minsize=154)
+    table.columnconfigure(2, weight=1, uniform='side')
+    for col, title in enumerate(('전자전표 · EAS', '비교 결과', '영수증 시스템')):
+        tk.Label(table, text=title, bg='#EAF2FC' if col != 1 else '#E8EDF3', fg=navy,
+                 font=(family, 11, 'bold'), pady=12).grid(row=0, column=col, sticky='nsew', padx=1)
+    cells = []
+    for row in range(1, 4):
+        table.rowconfigure(row, weight=1)
+        row_cells = []
+        for col in range(3):
+            if col == 1:
+                cell = tk.Frame(table, bg='white', padx=8, pady=12)
+                center = tk.Frame(cell, bg='white')
+                center.place(relx=0.5, rely=0.5, anchor='center')
+                cell.caption = tk.Label(center, bg='white', fg=muted, font=(family, 10))
+                cell.caption.pack(pady=(0, 6))
+                cell.status = tk.Label(center, bg='white', fg=ink, font=(family, 11, 'bold'))
+                cell.status.pack()
+                cell.center = center
+                cell.grid(row=row, column=col, sticky='nsew', padx=1, pady=(1, 0))
+                row_cells.append(cell)
+                continue
+            cell = tk.Label(table, bg='white', fg=ink, padx=14, pady=12,
+                            wraplength=280 if col != 1 else 130, anchor='center', justify='center',
+                            font=(family, 11, 'bold' if col == 1 else 'normal'))
+            cell.grid(row=row, column=col, sticky='nsew', padx=1, pady=(1, 0))
+            row_cells.append(cell)
+        cells.append(row_cells)
+
+    notice = tk.Label(body, bg='#F3F6FA', fg=muted, anchor='w', justify='left', wraplength=850)
+    notice.pack(fill='x', pady=(12, 0))
+    tk.Label(body, text='상세 화면에서 승인번호·일자·금액을 다시 대조합니다. 저장은 직접 합니다.',
+             bg='#F3F6FA', fg=muted, anchor='w', wraplength=850).pack(fill='x', pady=(7, 0))
+
+    def cancel(*_):
+        root.destroy()
+    def accept():
+        nonlocal result
+        index = picker.current()
+        if index >= 0 and dict(candidates[index].values)['registration'] == 'Y':
+            result = index
+            root.destroy()
+    tk.Button(footer, text='아니오, 중단', command=cancel, bg='white', fg=ink,
+              activebackground='#EAF2FC', relief='solid', bd=1, padx=24, pady=10).pack(side='left')
+    yes = tk.Button(footer, text='네, 상세 확인', command=accept, bg=navy, fg='white',
+                    activebackground='#004685', activeforeground='white', relief='flat', padx=26, pady=11)
+    yes.pack(side='right')
+
+    def refresh(*_):
+        index = picker.current()
+        if index < 0:
+            yes.configure(state='disabled')
+            for label, row in zip(('사용일자', '사용금액', '거래처'), cells):
+                for col, cell in enumerate(row):
+                    if col == 1:
+                        cell.caption.configure(text=label)
+                        cell.status.configure(text='후보 선택 필요', fg=muted)
+                    else:
+                        cell.configure(text='—', bg='white', fg=muted)
+            notice.configure(text='현재 표시된 목록의 후보만 비교합니다. 위에서 확인할 후보를 선택하세요.')
+            return
+        candidate = candidates[index]
+        for info, row in zip(comparison_rows(payload, candidate), cells):
+            label, left, state, right, equal = info
+            row[0].configure(text=left)
+            row[2].configure(text=right)
+            bg, fg = ('#EBF7F1', '#18734A') if equal else (amber_bg, amber)
+            row[1].configure(bg=bg)
+            row[1].center.configure(bg=bg)
+            row[1].caption.configure(text=label, bg=bg, fg=fg)
+            row[1].status.configure(text=state, bg=bg, fg=fg)
+        registered = dict(candidate.values)['registration'] == 'Y'
+        yes.configure(state='normal' if registered else 'disabled')
+        notice.configure(text=('업체등록 Y 확인 완료 · 거래처 표기가 다르면 내용을 확인한 뒤 진행하세요.'
+                               if registered else '업체등록 Y를 확인할 수 없어 이 후보는 진행할 수 없습니다.'),
+                         fg=muted if registered else amber)
+
+    picker.bind('<<ComboboxSelected>>', refresh)
+    root.bind('<Escape>', cancel)
+    root.protocol('WM_DELETE_WINDOW', cancel)
+    refresh()
+    root.update_idletasks()
+    x = max(0, (root.winfo_screenwidth() - root.winfo_width()) // 2)
+    y = max(0, (root.winfo_screenheight() - root.winfo_height()) // 2)
+    root.geometry(f'+{x}+{y}')
+    root.lift()
+    root.focus_force()
+    # Escape/window close cancel; Enter never implicitly accepts a difference.
+    if on_ready:
+        root.after_idle(lambda: on_ready(root))
+    root.mainloop()
+    return result
+
+
+def connect(payload, baseline, confirm=confirm_desktop, on_stop=None, compare=None):
     from selenium.webdriver.support.ui import WebDriverWait
     from selenium.webdriver.common.action_chains import ActionChains
     from eas_assistant import verify_transaction
@@ -398,7 +586,9 @@ def connect(payload, baseline, confirm=confirm_desktop, on_stop=None):
         print("사용자 로그인 완료를 자동으로 기다립니다. PyCharm에서 Enter를 누르지 않아도 됩니다.")
         require(baseline_call(baseline.wait_for_login, driver), "로그인 완료 대기 실패입니다.")
         baseline.time.sleep(2)  # Same sequence/timing as the original main().
+        stage = 'EAS 목록 화면 준비'
         require(baseline_call(baseline.open_eas_card_list, driver), "EAS 이동이 실패했습니다.")
+        stage = 'EAS 공지 닫기·소멸 확인'
         require(baseline_call(baseline.close_all_startup_notices, driver), "기준 코드가 공지를 모두 닫지 못했습니다.")
         baseline_call(baseline.show_final_status, driver)
         guard_screen(driver)
@@ -410,12 +600,27 @@ def connect(payload, baseline, confirm=confirm_desktop, on_stop=None):
             require(len(elements) <= 1, "사용내역 목록을 하나로 확정할 수 없습니다.")
             return bool(elements and elements[0].find_elements("css selector", "tr.IBDataRow"))
 
+        stage = '목록 거래 행 로딩 대기'
         WebDriverWait(driver, 20).until(grid_ready)
         stage = '목록 거래 대조'
+        print('현재 표시된 목록에서 연결한 영수증의 거래를 대조하는 중입니다.')
         with elapsed_step('목록 거래 대조'):
-            candidate = find_candidate(driver, payload)
+            if compare is not None:
+                candidates = find_candidates(driver, payload)
+            else:
+                candidates = [find_candidate(driver, payload)]
+        merchant_confirmed = False
+        if compare is not None:
+            stage = '전자전표·영수증 비교 확인'
+            selected = compare(payload, candidates)
+            require(type(selected) is int and 0 <= selected < len(candidates), '사용자가 거래 열기를 취소했습니다.')
+            candidate = candidates[selected]
+            merchant_confirmed = True
+        else:
+            candidate = candidates[0]
         values = dict(candidate.values)
-        require(confirm("EAS 거래 확인", (
+        require(values['registration'] == 'Y', '업체등록 Y 확인이 필요합니다.')
+        require(compare is not None or confirm("EAS 거래 확인", (
             "현재 화면에 표시된 목록에서 후보 한 건을 찾았습니다.\n"
             f"일자: {values['receiptDate']}\n금액: {values['amount']:,}원\n"
             f"거래처: {values['merchantName']}\n카드 끝 4자리: {values['cardLast4']}\n업체등록: Y\n\n"
@@ -423,7 +628,7 @@ def connect(payload, baseline, confirm=confirm_desktop, on_stop=None):
             "숨겨진 행·다른 페이지를 모두 검색한 결과는 아닙니다. 승인번호는 상세에서 추가 대조합니다."
         )), "사용자가 거래 열기를 취소했습니다.")
         with elapsed_step('확인 후 목록 재대조'):
-            proof, date_cell = capture_registration(driver, payload, candidate)
+            proof, date_cell = capture_registration(driver, payload, candidate, merchant_confirmed)
         # Only this verified date cell is double-clicked, never 확인/전송/저장.
         with elapsed_step('상세 이동·입력란 준비'):
             ActionChains(driver).double_click(date_cell).perform()
@@ -433,7 +638,8 @@ def connect(payload, baseline, confirm=confirm_desktop, on_stop=None):
         validate_handoff(payload)
         stage = '상세 승인번호·일자·금액 대조'
         _, observed = read_detail(driver, payload, proof)
-        verify_transaction(payload, observed)
+        verification_payload = confirmed_transaction_payload(payload, proof)
+        verify_transaction(verification_payload, observed)
         fields = payload["fields"]
         stage = '사용내역 입력 확인'
         require(confirm("실사용자·인원수·목적 입력 확인", (
@@ -446,7 +652,7 @@ def connect(payload, baseline, confirm=confirm_desktop, on_stop=None):
         wait_detail_ready(driver)
         validate_handoff(payload)
         with elapsed_step('3개 항목 입력·값 유지 검증'):
-            fill_verified(driver, None, payload, context_reader=lambda: read_detail(driver, payload, proof))
+            fill_verified(driver, None, verification_payload, context_reader=lambda: read_detail(driver, payload, proof))
         print("3개 입력란의 값 유지 확인 완료. React 검증 표시와 전체 거래를 직접 확인 후 직접 저장하세요.")
         return 0
     except SafetyStop as error:
@@ -468,7 +674,7 @@ def run_connection(payload):
     try:
         # Importing the preserved file does not run its guarded main().
         baseline = importlib.import_module("eas_card_automation")
-        return connect(payload, ResponsiveBaseline(baseline), on_stop=show_stop)
+        return connect(payload, ResponsiveBaseline(baseline), on_stop=show_stop, compare=compare_desktop)
     except SafetyStop as error:
         print(f"중단: {error}", file=sys.stderr)
     except KeyboardInterrupt:
