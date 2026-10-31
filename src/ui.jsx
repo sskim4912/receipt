@@ -50,7 +50,7 @@ export function Icon({ name, size = 24 }) {
     </svg>
   );
 }
-export function Modal({ title, children, onClose, wide = false }) {
+export function Modal({ title, children, onClose, wide = false, className = '' }) {
   const ref = useRef();
   useEffect(() => {
     const old = document.activeElement;
@@ -83,7 +83,7 @@ export function Modal({ title, children, onClose, wide = false }) {
     <div className="overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <section
         ref={ref}
-        className={`modal ${wide ? 'wide' : ''}`}
+        className={`modal ${wide ? 'wide' : ''} ${className}`}
         role="dialog"
         aria-modal="true"
         aria-label={title}
@@ -112,7 +112,10 @@ export function Field({ label, children, hint, required = true, requiredTone = '
       <span>
         {label}{' '}
         {required && (
-          <i className={requiredTone ? `required-mark ${requiredTone}` : 'required-mark'} aria-hidden="true">
+          <i
+            className={requiredTone ? `required-mark ${requiredTone}` : 'required-mark'}
+            aria-hidden="true"
+          >
             *
           </i>
         )}

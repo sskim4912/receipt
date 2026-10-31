@@ -2413,3 +2413,87 @@ footer {
     grid-template-columns: 1fr;
   }
 }
+
+/* Keep first-time setup and launch controls visible while help scrolls. */
+.modal.eas-dialog {
+  width: 100%;
+  max-width: 600px;
+  max-height: calc(100dvh - 32px);
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 20px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.eas-dialog .modal-head {
+  flex-shrink: 0;
+  margin-bottom: 12px;
+}
+.eas-dialog .icon-button {
+  flex-shrink: 0;
+}
+.eas-actions {
+  flex-shrink: 0;
+  display: grid;
+  gap: 8px;
+}
+.eas-actions .button {
+  min-height: 44px;
+  padding: 10px 12px;
+  font-size: 14px;
+}
+.eas-actions > a.button:not(.primary) {
+  border: 1px solid #a8c6e2;
+  background: #eef6ff;
+  color: #174a73;
+  border-radius: 10px;
+  text-decoration: none;
+}
+.eas-actions p {
+  margin: 0;
+  font-size: 12px;
+}
+.eas-download-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+}
+.eas-content {
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  margin-top: 12px;
+  padding-right: 4px;
+}
+.eas-receipt-summary {
+  margin: 0 0 10px;
+  overflow-wrap: anywhere;
+}
+.eas-receipt-summary span {
+  display: block;
+}
+.eas-steps {
+  padding-left: 20px;
+  margin: 8px 0 12px;
+}
+.eas-content details p {
+  margin: 10px 0;
+}
+@media (max-height: 500px) {
+  .modal.eas-dialog {
+    padding: 12px;
+    max-height: calc(100dvh - 16px);
+  }
+  .eas-dialog .modal-head {
+    margin-bottom: 6px;
+  }
+  .eas-actions {
+    gap: 4px;
+  }
+  .eas-actions > p {
+    display: none;
+  }
+}

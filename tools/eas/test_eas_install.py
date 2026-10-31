@@ -19,6 +19,15 @@ class Key:
 
 
 class InstallTests(unittest.TestCase):
+    def test_cancelled_baseline_selection_is_not_successful_installation(self):
+        dialogs = SimpleNamespace(askopenfilename=Mock(return_value=''))
+        tk = SimpleNamespace(filedialog=dialogs, messagebox=SimpleNamespace())
+        with patch.dict('sys.modules', {'winreg': SimpleNamespace(), 'tkinter': tk,
+                                       'tkinter.filedialog': dialogs}), \
+             patch.object(installer, 'discover_baselines', return_value=[]):
+            with self.assertRaisesRegex(ValueError, 'PC 연결은 아직 등록되지 않았습니다'):
+                installer.install(object())
+
     def test_persistent_hkcu_registration_original_preserved_and_reinstall(self):
         with tempfile.TemporaryDirectory() as temporary, ExitStack() as stack:
             root = Path(temporary)
@@ -43,7 +52,10 @@ class InstallTests(unittest.TestCase):
             stack.enter_context(patch.object(installer, 'BASELINE_SHA256', hashlib.sha256(source).hexdigest()))
             stack.enter_context(patch.object(installer, 'interpreter_works', return_value=True))
             stack.enter_context(patch.object(installer, 'discover_baselines', return_value=[baseline]))
+            stack.enter_context(patch.object(installer, 'desktop_directory', return_value=root / 'desktop'))
             installer.install(object())
+            self.assertIn('https://receipt.sskim4912.workers.dev/', (root / 'desktop/Aurora EAS Portal.url').read_text())
+            self.assertIn('aurora-eas://check', (root / 'desktop/Aurora EAS Connection Check.url').read_text())
             key = installer.REG_PATH + r'\shell\open\command'
             first_command = values[key, '']
             first = list((root / 'local app data/AuroraEAS').iterdir())[0]

@@ -102,6 +102,17 @@ def registry_command(python, handler):
     return f'"{python}" "{handler}" "%1"'
 
 
+def create_desktop_shortcuts():
+    """Use the user's redirected Desktop (including OneDrive), not a hardcoded path."""
+    desktop = desktop_directory()
+    desktop.mkdir(parents=True, exist_ok=True)
+    for name, url in (
+        ('Aurora EAS Portal.url', 'https://receipt.sskim4912.workers.dev/'),
+        ('Aurora EAS Connection Check.url', 'aurora-eas://check'),
+    ):
+        (desktop / name).write_bytes(f'[InternetShortcut]\r\nURL={url}\r\n'.encode('ascii'))
+
+
 def uninstall():
     import winreg
     directory = Path(__file__).resolve().parent
@@ -127,7 +138,7 @@ def install(root):
             title='검증된 기준 코드를 자동으로 찾지 못했습니다. eas_card_automation.py를 한 번 선택하세요',
             filetypes=[('Python', '*.py')])
         if not selected:
-            return
+            raise ValueError('설치가 완료되지 않았습니다. 사내 담당자에게 검증된 eas_card_automation.py를 받아 다시 설치해주세요. PC 연결은 아직 등록되지 않았습니다.')
         baselines = [Path(selected)]
     baseline = baselines[0]
     if not approved_baseline(baseline):
@@ -156,9 +167,15 @@ def install(root):
     (target / 'UNINSTALL.cmd').write_bytes(
         ('@echo off\r\nchcp 65001 >nul\r\n"' + str(python) +
          '" "%~dp0install_windows.py" --uninstall\r\npause\r\n').encode('utf-8'))
+    try:
+        create_desktop_shortcuts()
+        desktop_notice = '바탕화면에 Aurora EAS Portal과 Connection Check 바로가기를 만들었습니다.\n'
+    except OSError:
+        desktop_notice = '바탕화면 바로가기는 만들지 못했습니다. 웹 화면에서 PC 연결 상태 확인을 눌러주세요.\n'
     messagebox.showinfo('설정 완료',
         'PC 연결 등록이 완료됐습니다.\n관리자 화면을 새로고침하고 전자전표 연결을 눌러주세요.\n'
         '브라우저에서 프로그램 열기를 허용하세요. JSON 파일 선택은 필요 없습니다.\n\n'
+        + desktop_notice +
         '다른 영수증을 연결할 때는 이전 연결로 열린 Edge를 먼저 닫아주세요.\n'
         '설치 위치: ' + str(target), parent=root)
 

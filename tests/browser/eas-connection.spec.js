@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { FakeFirestore } from '../fake-firestore.js';
 import { makeGate } from '../../src/lib/admin-gate.js';
 
@@ -56,8 +57,29 @@ test('관리자 PC 연결과 파일 대체 방식은 한 건만 전달하고 Fir
     .getByRole('button', { name: '테스트 사용자 테스트 매장 상세내역', exact: true })
     .click();
   await page.getByRole('button', { name: '전자전표 연결', exact: true }).click();
+  await page.setViewportSize({ width: page.viewportSize().width, height: 600 });
   const modal = page.getByRole('dialog', { name: '전자전표 연결', exact: true });
   await expect(modal).toContainText('현장 인원 식사');
+  const setup = modal.getByRole('link', { name: '처음 사용 · PC 자동 설치 다운로드' });
+  const zip = modal.getByRole('link', { name: 'ZIP 직접 다운로드' });
+  // No help expansion or scrolling needed to find the setup and launch actions.
+  await expect(setup).toBeInViewport();
+  await expect(zip).toBeInViewport();
+  await expect(modal.getByRole('button', { name: '닫기', exact: true })).toBeInViewport();
+  const setupDownload = page.waitForEvent('download');
+  await setup.click();
+  const setupFile = await setupDownload;
+  expect(setupFile.suggestedFilename()).toBe('AuroraEAS-Setup.cmd');
+  const setupBytes = await readFile(await setupFile.path());
+  expect(setupBytes.toString()).toContain('Get-FileHash -Algorithm SHA256');
+  const zipDownload = page.waitForEvent('download');
+  await zip.click();
+  const zipFile = await zipDownload;
+  expect(zipFile.suggestedFilename()).toBe('aurora-eas-windows.zip');
+  const zipBytes = await readFile(await zipFile.path());
+  expect(zipBytes.subarray(0, 4).toString('hex')).toBe('504b0304');
+  expect(setupBytes.toString()).toContain(createHash('sha256').update(zipBytes).digest('hex'));
+  await page.screenshot({ path: `.local/eas-dialog-${page.viewportSize().width}.png` });
   await expect(modal).toContainText('저장은 직접');
   const appLink = modal.getByRole('button', { name: 'EAS 보조 프로그램으로 연결', exact: true });
   await expect(appLink).toHaveAttribute('target', '_blank');
@@ -86,6 +108,12 @@ test('관리자 PC 연결과 파일 대체 방식은 한 건만 전달하고 Fir
   expect(downloads).toBe(0);
   expect(writes).toBe(0);
   await modal.getByText('최초 1회 PC 설정 · 연결 도움말', { exact: true }).click();
+  await modal.locator('.eas-content').evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+  });
+  await expect(setup).toBeInViewport();
+  await expect(appLink).toBeInViewport();
+  await expect(modal.getByRole('button', { name: '닫기', exact: true })).toBeInViewport();
   const installer = await page.request.get('/downloads/aurora-eas-windows.zip');
   expect(installer.ok()).toBe(true);
   expect((await installer.body()).subarray(0, 4).toString('hex')).toBe('504b0304');
