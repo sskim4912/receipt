@@ -4,10 +4,10 @@ import { readFile } from 'node:fs/promises';
 import { EAS_INSTALLER, fetchEasInstaller } from '../src/lib/eas-installer.js';
 
 const original = await readFile(
-  new URL('../public/downloads/AuroraEAS-Setup.exe', import.meta.url),
+  new URL('../public/downloads/AuroraEAS-Setup.zip', import.meta.url),
 );
 
-test('포탈 EXE가 정상일 때 대체 주소에 접속하지 않는다', async () => {
+test('포탈 ZIP이 정상일 때 대체 주소에 접속하지 않는다', async () => {
   const calls = [];
   const blob = await fetchEasInstaller(async (url) => {
     calls.push(url);
@@ -15,10 +15,10 @@ test('포탈 EXE가 정상일 때 대체 주소에 접속하지 않는다', asyn
   });
   assert.deepEqual(calls, [EAS_INSTALLER.path]);
   assert.equal(blob.size, EAS_INSTALLER.size);
-  assert.equal(blob.type, 'application/octet-stream');
+  assert.equal(blob.type, 'application/zip');
 });
 
-test('포탈이 EXE 대신 HTML을 반환하면 검증된 대체 EXE를 받는다', async () => {
+test('포탈이 ZIP 대신 HTML을 반환하면 검증된 대체 ZIP을 받는다', async () => {
   const calls = [];
   const blob = await fetchEasInstaller(async (url) => {
     calls.push(url);
@@ -28,7 +28,7 @@ test('포탈이 EXE 대신 HTML을 반환하면 검증된 대체 EXE를 받는�
   assert.deepEqual(Buffer.from(await blob.arrayBuffer()), original);
 });
 
-test('크기는 같아도 내용이 달라진 EXE는 내려받지 않는다', async () => {
+test('크기는 같아도 내용이 달라진 ZIP은 내려받지 않는다', async () => {
   const changed = Buffer.from(original);
   changed[2048] ^= 1;
   let calls = 0;
@@ -39,7 +39,7 @@ test('크기는 같아도 내용이 달라진 EXE는 내려받지 않는다', as
   assert.deepEqual(Buffer.from(await blob.arrayBuffer()), original);
 });
 
-test('두 주소 모두 실패하면 실행 파일 대신 오류를 안내한다', async () => {
+test('두 주소 모두 실패하면 압축 파일 대신 오류를 안내한다', async () => {
   let calls = 0;
   await assert.rejects(
     fetchEasInstaller(async () => {

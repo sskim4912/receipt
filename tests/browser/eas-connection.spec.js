@@ -66,7 +66,7 @@ test('관리자 PC 연결과 파일 대체 방식은 한 건만 전달하고 Fir
   await expect(modal).not.toContainText('현장 인원 식사');
   await expect(modal).toContainText('AuroraEAS-Setup.exe');
   const setup = modal.getByRole('link', { name: 'PC 자동 설치 다운로드' });
-  const zip = modal.getByRole('link', { name: 'ZIP 직접 다운로드' });
+  const zip = modal.getByRole('link', { name: '이전 설치 ZIP (담당자용)' });
   // No help expansion or scrolling needed to find the setup and launch actions.
   await expect(setup).toBeInViewport();
   await expect(zip).not.toBeVisible();
@@ -74,7 +74,7 @@ test('관리자 PC 연결과 파일 대체 방식은 한 건만 전달하고 Fir
   const useFallback = info.project.name === 'galaxy-chromium';
   let fallbackRequests = 0;
   if (useFallback) {
-    await page.route('**/downloads/AuroraEAS-Setup.exe?*', (route) =>
+    await page.route('**/downloads/AuroraEAS-Setup.zip?*', (route) =>
       route.fulfill({
         status: 200,
         contentType: 'text/html',
@@ -82,13 +82,13 @@ test('관리자 PC 연결과 파일 대체 방식은 한 건만 전달하고 Fir
       }),
     );
     const binary = await readFile(
-      new URL('../../public/downloads/AuroraEAS-Setup.exe', import.meta.url),
+      new URL('../../public/downloads/AuroraEAS-Setup.zip', import.meta.url),
     );
     await page.route(EAS_INSTALLER.fallback, (route) => {
       fallbackRequests++;
       return route.fulfill({
         status: 200,
-        contentType: 'application/octet-stream',
+        contentType: 'application/zip',
         headers: { 'access-control-allow-origin': '*' },
         body: binary,
       });
@@ -98,11 +98,11 @@ test('관리자 PC 연결과 파일 대체 방식은 한 건만 전달하고 Fir
   await setup.click();
   const setupFile = await setupDownload;
   expect(fallbackRequests).toBe(useFallback ? 1 : 0);
-  expect(setupFile.suggestedFilename()).toBe('AuroraEAS-Setup.exe');
+  expect(setupFile.suggestedFilename()).toBe('AuroraEAS-Setup.zip');
   const setupBytes = await readFile(await setupFile.path());
-  expect(setupBytes.subarray(0, 2).toString()).toBe('MZ');
+  expect(setupBytes.subarray(0, 4).toString('hex')).toBe('504b0304');
   expect(createHash('sha256').update(setupBytes).digest('hex')).toBe(
-    'ad24daf9c2b50660aba8935f5f88b0eb13c2cbfaafc0320fe3677a2a5ac2f4bc',
+    '273b77d6542edca73e5391bbfcecdbc9f73c5a89922757d1ad5c264cbcfe57a9',
   );
   await modal.getByText('설치·연결이 안 될 때', { exact: true }).click();
   const zipDownload = page.waitForEvent('download');

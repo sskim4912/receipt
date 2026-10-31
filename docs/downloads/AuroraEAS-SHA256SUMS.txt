@@ -1,1 +1,2 @@
 ad24daf9c2b50660aba8935f5f88b0eb13c2cbfaafc0320fe3677a2a5ac2f4bc  AuroraEAS-Setup.exe
+273b77d6542edca73e5391bbfcecdbc9f73c5a89922757d1ad5c264cbcfe57a9  AuroraEAS-Setup.zip

@@ -257,3 +257,16 @@ EXE에는 Python/Tk/Selenium과 검증된 접속 원본이 포함되어 있으�
 두 응답 모두 검증되지 않으면 실행 파일로 저장하지 않고 오류와 도움말의 EXE 대체 다운로드를 안내합니다.
 진행 중 버튼은 ‘설치 파일 준비 중…’으로 표시합니다. 자동 실행이나 브라우저 보안 우회는 하지 않습니다.
 포탈 정상 다운로드와 HTML 오류 응답의 대체 다운로드를 브라우저에서 검증했습니다.
+
+
+## 설치 EXE의 ZIP 배포
+
+기본 설치 다운로드는 `AuroraEAS-Setup.zip`을 전달합니다.
+ZIP에는 동일한 승인 EXE(`AuroraEAS-Setup.exe`), 설치안내.txt와 EXE SHA256SUMS.txt가 포함됩니다.
+직원은 ZIP을 다운로드하고 모두 압축을 푼 다음 EXE를 직접 실행합니다. Python을 따로 설치할 필요는 없습니다.
+ZIP은 일반적인 암호 없는 압축이며 회사의 보안 차단을 우회하거나 비활성화하지 않습니다.
+실행이 차단되면 사내 담당자의 확인이 필요합니다.
+포탈 버튼과 대체 다운로드는 ZIP 크기·SHA-256을 확인하고, HTTP 응답은 application/zip과 첨부 파일명을 사용합니다.
+기존 `aurora-eas-windows.zip`은 Python/기준 코드가 필요한 담당자용 이전 방식이므로 새 직원용 ZIP과 구분합니다.
+재생성은 `tools/eas/windows/package_zip.py`에 승인 EXE와 기대 SHA-256을 지정합니다.
+현재 ZIP SHA-256: `273b77d6542edca73e5391bbfcecdbc9f73c5a89922757d1ad5c264cbcfe57a9`.

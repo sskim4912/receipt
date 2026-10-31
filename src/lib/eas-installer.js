@@ -1,10 +1,10 @@
 export const EAS_INSTALLER = {
-  fileName: 'AuroraEAS-Setup.exe',
-  path: '/downloads/AuroraEAS-Setup.exe?v=ad24daf9c2b5',
+  fileName: 'AuroraEAS-Setup.zip',
+  path: '/downloads/AuroraEAS-Setup.zip?v=273b77d6542e',
   fallback:
-    'https://raw.githubusercontent.com/sskim4912/receipt/6efb50d0b2f3518d10a24574dd0070b877cd82e1/public/downloads/AuroraEAS-Setup.exe',
-  size: 18291233,
-  sha256: 'ad24daf9c2b50660aba8935f5f88b0eb13c2cbfaafc0320fe3677a2a5ac2f4bc',
+    'https://raw.githubusercontent.com/sskim4912/receipt/main/public/downloads/AuroraEAS-Setup.zip',
+  size: 18252511,
+  sha256: '273b77d6542edca73e5391bbfcecdbc9f73c5a89922757d1ad5c264cbcfe57a9',
 };
 
 export async function fetchEasInstaller(fetcher = fetch) {
@@ -23,7 +23,7 @@ export async function fetchEasInstaller(fetcher = fetch) {
         '',
       );
       if (hex !== EAS_INSTALLER.sha256) continue;
-      return new Blob([bytes], { type: 'application/octet-stream' });
+      return new Blob([bytes], { type: 'application/zip' });
     } catch {
       // A missing asset, HTML fallback, corrupt file or network failure can use
       // the pinned copy. Never download unverified bytes as an executable.

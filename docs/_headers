@@ -3,3 +3,8 @@
   Content-Type: application/octet-stream
   Content-Disposition: attachment; filename="AuroraEAS-Setup.exe"
   Cache-Control: public, max-age=0, must-revalidate
+
+/downloads/AuroraEAS-Setup.zip
+  Content-Type: application/zip
+  Content-Disposition: attachment; filename="AuroraEAS-Setup.zip"
+  Cache-Control: public, max-age=0, must-revalidate

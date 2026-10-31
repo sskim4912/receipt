@@ -116,7 +116,7 @@ export function EasConnection({ receipt, onClose }) {
             </span>
             <div>
               <strong>1. 설치 파일 다운로드</strong>
-              <p>처음 사용하는 PC에서는 ‘PC 자동 설치 다운로드’를 눌러 파일을 받으세요.</p>
+              <p>처음 사용하는 PC에서는 ‘PC 자동 설치 다운로드’를 눌러 ZIP 파일을 받으세요.</p>
             </div>
           </li>
           <li>
@@ -124,10 +124,10 @@ export function EasConnection({ receipt, onClose }) {
               <Icon name="check" />
             </span>
             <div>
-              <strong>2. 다운로드한 파일 실행</strong>
+              <strong>2. 압축을 풀고 설치 파일 실행</strong>
               <p>
-                <code>AuroraEAS-Setup.exe</code>를 실행하고 설치 안내를 따라주세요. ZIP 압축 해제나
-                Python 설치 없이 한 번에 설정합니다.
+                <code>AuroraEAS-Setup.zip</code>의 압축을 모두 푼 뒤, 폴더 안의{' '}
+                <code>AuroraEAS-Setup.exe</code>를 실행하세요. Python은 따로 설치하지 않아도 됩니다.
               </p>
             </div>
           </li>
@@ -150,9 +150,9 @@ export function EasConnection({ receipt, onClose }) {
         <details>
           <summary>설치·연결이 안 될 때</summary>
           <div className="eas-download-links">
-            <a href={EAS_INSTALLER.fallback}>EXE 대체 다운로드</a>
+            <a href={EAS_INSTALLER.fallback}>ZIP 대체 다운로드</a>
             <a href="/downloads/aurora-eas-windows.zip" download>
-              ZIP 직접 다운로드
+              이전 설치 ZIP (담당자용)
             </a>
             <a href="aurora-eas://check" target="_blank" rel="noopener noreferrer">
               PC 연결 상태 확인
@@ -160,8 +160,8 @@ export function EasConnection({ receipt, onClose }) {
           </div>
           <p>
             Windows PC용입니다. 브라우저가 자동으로 설치하거나 다운로드한 파일을 실행할 수는
-            없습니다. 내려받은 EXE를 직접 실행하면 설치를 시작합니다. 설치가 끝나면 바탕화면에 업무
-            포탈과 PC 연결 확인 바로가기를 만듭니다.
+            없습니다. 내려받은 ZIP의 압축을 풀고 EXE를 실행하면 설치를 시작합니다. 설치가 끝나면
+            바탕화면에 업무 포탈과 PC 연결 확인 바로가기를 만듭니다.
           </p>
           <p>
             EXE에는 Python·Selenium과 접속 모듈이 포함되어 있어 별도 설치나 코드 파일 선택이
