@@ -331,6 +331,20 @@ class BridgeTests(unittest.TestCase):
         for name in ("costCategory", "account"):
             self.assertEqual(driver.detail.xpath(f'//input[@name="{name}"]')[0].get("value"), "DO-NOT-CHANGE")
 
+    def test_fast_startup_keeps_transaction_checks_and_never_saves(self):
+        driver = Driver()
+        baseline = Baseline(driver)
+        baseline.prepare_eas = lambda current: baseline.step('prepare_eas', current)
+        approvals = []
+        with patch('selenium.webdriver.common.action_chains.ActionChains', Actions), \
+             redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+            result = connect(sample(), baseline, lambda title, message: approvals.append(title) or True)
+        self.assertEqual(result, 0)
+        self.assertEqual(baseline.calls, ['start_edge', 'prepare_eas', 'keep_browser_open'])
+        self.assertEqual(len(approvals), 2)
+        self.assertEqual(set(driver.edited), {'useName', 'empCnt', 'resn'})
+        self.assertNotIn('save', driver.clicked)
+
     def test_notice_failure_is_checked_before_matching(self):
         driver = Driver()
         baseline = Baseline(driver, notices=False)

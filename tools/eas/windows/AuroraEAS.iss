@@ -8,7 +8,7 @@
 [Setup]
 AppId={{9A780581-58B0-4AA8-8726-1EAD93477D83}
 AppName=Aurora EAS
-AppVersion=1.0.0
+AppVersion=1.1.0
 DefaultDirName={localappdata}\AuroraEAS\DesktopApp
 DefaultGroupName=Aurora EAS
 PrivilegesRequired=lowest

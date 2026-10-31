@@ -12,6 +12,17 @@ from eas_assistant import SafetyStop
 
 
 class ProfileTests(unittest.TestCase):
+    def test_fast_startup_uses_eager_loading_with_the_same_saved_profile(self):
+        with tempfile.TemporaryDirectory() as root, patch.dict(os.environ, {'LOCALAPPDATA': root}):
+            options_seen = []
+            def original(driver, options=None):
+                options_seen.append(options)
+            baseline = SimpleNamespace(start_edge=lambda: webdriver.Edge(), prepare_eas=lambda driver: True)
+            with patch.object(webdriver.Edge, '__init__', original):
+                start_edge_with_profile(baseline)
+            self.assertEqual(options_seen[0].page_load_strategy, 'eager')
+            self.assertIn(f'--user-data-dir={Path(root) / "AuroraEAS" / "EdgeProfile"}', options_seen[0].arguments)
+
     def test_reuses_profile_and_preserves_driver_configuration(self):
         with tempfile.TemporaryDirectory() as root, patch.dict(os.environ, {'LOCALAPPDATA': root}):
             calls = []

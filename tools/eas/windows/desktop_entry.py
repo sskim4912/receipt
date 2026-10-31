@@ -5,6 +5,7 @@ import hashlib
 import importlib.util
 from pathlib import Path
 import sys
+from eas_startup import install_fast_startup
 
 BASELINE_SHA256 = 'd66a47a6c4ea3094cc3dc2ec8c39bd57601cda3b24eac2ef89acc6e3001e3186'
 
@@ -26,6 +27,8 @@ def load_packaged_baseline(directory):
     except BaseException:
         sys.modules.pop('eas_card_automation', None)
         raise
+    if callable(getattr(module, 'start_edge', None)):
+        install_fast_startup(module)
     return module
 
 
@@ -44,7 +47,7 @@ def main():
             module = load_packaged_baseline(directory)
             for name in ('start_edge', 'open_sso_login', 'wait_for_login',
                          'open_eas_card_list', 'close_all_startup_notices',
-                         'show_final_status', 'keep_browser_open'):
+                         'show_final_status', 'keep_browser_open', 'prepare_eas'):
                 if not callable(getattr(module, name, None)):
                     return 1
             tkinter.Tcl().eval('info patchlevel')

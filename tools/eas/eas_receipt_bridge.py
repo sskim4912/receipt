@@ -64,6 +64,8 @@ def start_edge_with_profile(baseline):
 
     def persistent_init(driver, options=None, *args, **kwargs):
         options = options if options is not None else webdriver.EdgeOptions()
+        if callable(getattr(baseline, 'prepare_eas', None)):
+            options.page_load_strategy = 'eager'
         # Replace temporary profiles and private browsing rather than allowing
         # competing flags to silently discard the saved session.
         options.arguments[:] = [arg for arg in options.arguments if not (
@@ -330,16 +332,21 @@ def connect(payload, baseline, confirm=confirm_desktop, on_stop=None):
     stage = '기존 Edge·로그인·공지 처리'
     try:
         print("저장된 EAS 전용 Edge 프로필로 실행합니다. 최초 로그인·세션 만료 시 직접 로그인해주세요.")
+        startup_started = time.monotonic()
         driver = start_edge_with_profile(baseline)
         require(driver is not None, "Edge 실행이 실패했습니다. 이전 EAS Edge 창을 모두 닫고 다시 실행해주세요. 저장된 프로필은 삭제하지 않습니다.")
-        require(baseline_call(baseline.open_sso_login, driver), "SSO 접속이 실패했습니다.")
-        print("사용자 로그인 완료를 자동으로 기다립니다. PyCharm에서 Enter를 누르지 않아도 됩니다.")
-        require(baseline_call(baseline.wait_for_login, driver), "로그인 완료 대기 실패입니다.")
-        baseline.time.sleep(2)  # Same sequence/timing as the original main().
-        require(baseline_call(baseline.open_eas_card_list, driver), "EAS 이동이 실패했습니다.")
-        require(baseline_call(baseline.close_all_startup_notices, driver), "기준 코드가 공지를 모두 닫지 못했습니다.")
-        baseline_call(baseline.show_final_status, driver)
+        if callable(getattr(baseline, 'prepare_eas', None)):
+            require(baseline_call(baseline.prepare_eas, driver), 'EAS 로그인·목록 준비에 실패했습니다.')
+        else:
+            require(baseline_call(baseline.open_sso_login, driver), "SSO 접속이 실패했습니다.")
+            print("사용자 로그인 완료를 자동으로 기다립니다. PyCharm에서 Enter를 누르지 않아도 됩니다.")
+            require(baseline_call(baseline.wait_for_login, driver), "로그인 완료 대기 실패입니다.")
+            baseline.time.sleep(2)  # Same sequence/timing as the original main().
+            require(baseline_call(baseline.open_eas_card_list, driver), "EAS 이동이 실패했습니다.")
+            require(baseline_call(baseline.close_all_startup_notices, driver), "기준 코드가 공지를 모두 닫지 못했습니다.")
+            baseline_call(baseline.show_final_status, driver)
         guard_screen(driver)
+        print(f'EAS 목록 준비: {time.monotonic() - startup_started:.1f}초 (Edge 실행·서버 응답 포함)')
 
         def grid_ready(current):
             guard_screen(current)

@@ -16,10 +16,10 @@ InstallDir "$LOCALAPPDATA\AuroraEAS\DesktopApp"
 SetCompressor /SOLID lzma
 ShowInstDetails show
 ShowUninstDetails show
-VIProductVersion "1.0.0.0"
+VIProductVersion "1.1.0.0"
 VIAddVersionKey "ProductName" "Aurora EAS"
 VIAddVersionKey "FileDescription" "Aurora EAS per-user setup"
-VIAddVersionKey "FileVersion" "1.0.0.0"
+VIAddVersionKey "FileVersion" "1.1.0.0"
 VIAddVersionKey "LegalCopyright" "Aurora EAS"
 !define MUI_ABORTWARNING
 !define MUI_FINISHPAGE_RUN "$INSTDIR\AuroraEAS.exe"
@@ -66,7 +66,7 @@ Section "Aurora EAS"
   WriteRegStr HKCU "Software\Classes\aurora-eas" "URL Protocol" ""
   WriteRegStr HKCU "Software\Classes\aurora-eas\shell\open\command" "" '$\"$INSTDIR\AuroraEAS.exe$\" $\"%1$\"'
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\AuroraEAS" "DisplayName" "Aurora EAS"
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\AuroraEAS" "DisplayVersion" "1.0.0"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\AuroraEAS" "DisplayVersion" "1.1.0"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\AuroraEAS" "UninstallString" '$\"$INSTDIR\Uninstall.exe$\"'
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\AuroraEAS" "QuietUninstallString" '$\"$INSTDIR\Uninstall.exe$\" /S'
   WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\AuroraEAS" "NoModify" 1
