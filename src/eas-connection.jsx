@@ -73,7 +73,11 @@ export function EasConnection({ receipt, onClose }) {
         )}
         <p className="muted eas-launch-hint">설치한 PC에서는 바로 연결하세요.</p>
         <p className="eas-first-label">처음 사용하는 PC인가요?</p>
-        <a className="button full" href="/downloads/AuroraEAS-Setup.cmd" download>
+        <a
+          className="button full"
+          href="/downloads/AuroraEAS-Setup.exe?v=ad24daf9c2b5"
+          download="AuroraEAS-Setup.exe"
+        >
           <Icon name="download" size={20} /> PC 자동 설치 다운로드
         </a>
       </div>
@@ -103,8 +107,8 @@ export function EasConnection({ receipt, onClose }) {
             <div>
               <strong>2. 다운로드한 파일 실행</strong>
               <p>
-                <code>AuroraEAS-Setup.cmd</code>를 실행하고 설치 안내를 따라주세요. ZIP 다운로드와
-                압축 해제, 설치 시작은 자동으로 진행됩니다.
+                <code>AuroraEAS-Setup.exe</code>를 실행하고 설치 안내를 따라주세요. ZIP 압축 해제나
+                Python 설치 없이 한 번에 설정합니다.
               </p>
             </div>
           </li>
@@ -136,18 +140,19 @@ export function EasConnection({ receipt, onClose }) {
           </div>
           <p>
             Windows PC용입니다. 브라우저가 자동으로 설치하거나 다운로드한 파일을 실행할 수는
-            없습니다. 자동 설치 파일을 직접 실행하면 바탕화면에 압축을 풀고 설치를 시작합니다.
-            설치가 끝나면 바탕화면에 업무 포탈과 PC 연결 확인 바로가기를 만듭니다.
+            없습니다. 내려받은 EXE를 직접 실행하면 설치를 시작합니다. 설치가 끝나면 바탕화면에 업무
+            포탈과 PC 연결 확인 바로가기를 만듭니다.
           </p>
           <p>
-            Python이 없거나 검증된 eas_card_automation.py를 찾지 못하면 설치를 완료할 수 없습니다.
-            Python 설치는 사내 담당자에게 요청하고, 기준 코드는 최초 한 번 선택해주세요. 회사 기준
-            코드는 공개 다운로드에 포함하지 않습니다.
+            EXE에는 Python·Selenium과 접속 모듈이 포함되어 있어 별도 설치나 코드 파일 선택이
+            필요하지 않습니다. Microsoft Edge가 설치되어 있어야 하며, 최초 연결 때 드라이버 자동
+            준비를 위한 인터넷 접속이 필요합니다.
           </p>
           <p>
-            CMD 다운로드가 회사 정책으로 차단되면 ZIP 직접 다운로드를 이용하세요. 전체 압축을 풀고
-            INSTALL.cmd를 실행하면 됩니다. 기존 설치 사용자도 새 버전 설치를 한 번 실행해주세요.
-            다른 영수증을 연결하기 전 이전 EAS Edge 창을 닫아주세요.
+            현재 EXE는 미서명 초기 검증 버전입니다. 회사 보안 정책으로 차단되면 담당자에게
+            확인해주세요. 기존 ZIP은 Python과 사내 기준 코드가 필요한 이전 설치 방식입니다. 기존
+            설치 사용자도 새 EXE 설치를 한 번 실행해주세요. 다른 영수증을 연결하기 전 이전 EAS Edge
+            창을 닫아주세요.
           </p>
           <p>
             PC 연결 상태 확인은 등록 여부만 확인합니다. 회사 로그인·EAS 접속 성공을 확인하는 기능은

@@ -63,7 +63,7 @@ test('관리자 PC 연결과 파일 대체 방식은 한 건만 전달하고 Fir
   await expect(modal.getByLabel('연결할 영수증')).toContainText('테스트 매장');
   await expect(modal.getByLabel('연결할 영수증')).toContainText('25,000원');
   await expect(modal).not.toContainText('현장 인원 식사');
-  await expect(modal).toContainText('AuroraEAS-Setup.cmd');
+  await expect(modal).toContainText('AuroraEAS-Setup.exe');
   const setup = modal.getByRole('link', { name: 'PC 자동 설치 다운로드' });
   const zip = modal.getByRole('link', { name: 'ZIP 직접 다운로드' });
   // No help expansion or scrolling needed to find the setup and launch actions.
@@ -73,9 +73,12 @@ test('관리자 PC 연결과 파일 대체 방식은 한 건만 전달하고 Fir
   const setupDownload = page.waitForEvent('download');
   await setup.click();
   const setupFile = await setupDownload;
-  expect(setupFile.suggestedFilename()).toBe('AuroraEAS-Setup.cmd');
+  expect(setupFile.suggestedFilename()).toBe('AuroraEAS-Setup.exe');
   const setupBytes = await readFile(await setupFile.path());
-  expect(setupBytes.toString()).toContain('Get-FileHash -Algorithm SHA256');
+  expect(setupBytes.subarray(0, 2).toString()).toBe('MZ');
+  expect(createHash('sha256').update(setupBytes).digest('hex')).toBe(
+    'ad24daf9c2b50660aba8935f5f88b0eb13c2cbfaafc0320fe3677a2a5ac2f4bc',
+  );
   await modal.getByText('설치·연결이 안 될 때', { exact: true }).click();
   const zipDownload = page.waitForEvent('download');
   await zip.click();
@@ -83,7 +86,11 @@ test('관리자 PC 연결과 파일 대체 방식은 한 건만 전달하고 Fir
   expect(zipFile.suggestedFilename()).toBe('aurora-eas-windows.zip');
   const zipBytes = await readFile(await zipFile.path());
   expect(zipBytes.subarray(0, 4).toString('hex')).toBe('504b0304');
-  expect(setupBytes.toString()).toContain(createHash('sha256').update(zipBytes).digest('hex'));
+  const publishedChecksum = await page.request.get('/downloads/AuroraEAS-SHA256SUMS.txt');
+  expect(publishedChecksum.ok()).toBe(true);
+  expect(await publishedChecksum.text()).toContain(
+    createHash('sha256').update(setupBytes).digest('hex'),
+  );
   await modal.getByText('설치·연결이 안 될 때', { exact: true }).click();
   await page.screenshot({ path: `.local/eas-dialog-${page.viewportSize().width}.png` });
   await expect(modal).toContainText('저장은 직접');

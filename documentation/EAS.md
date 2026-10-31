@@ -236,3 +236,17 @@ Python/tkinter와 검증된 사내 `eas_card_automation.py`는 여전히 필요�
 ‘처음 한 번, 간편하게 시작하기’는 파일 다운로드 → AuroraEAS-Setup.cmd 직접 실행 → 이후 연결의 3단계입니다.
 CMD를 실행하면 ZIP 다운로드·압축 해제·설치 시작이 자동 진행되지만, 다운로드만으로 실행되지는 않습니다.
 직원용 독립 EXE는 아직 제공하지 않으며 Python·사내 기준 코드가 필요한 기존 설치 요건은 도움말에서 안내합니다.
+
+
+## 직원용 EXE 설치 다운로드
+
+사용자가 사내 접속 코드를 포함하는 EXE의 공개 포탈 게시를 승인했습니다.
+직원용 기본 버튼은 `/downloads/AuroraEAS-Setup.exe`로 연결합니다.
+EXE에는 Python/Tk/Selenium과 검증된 접속 원본이 포함되어 있으므로 직원이 Python을 설치하거나 코드 파일을 선택하지 않습니다.
+다운로드한 EXE는 사용자가 직접 실행해야 합니다. Windows 10/11 64비트와 Microsoft Edge가 필요하며,
+첫 연결 때 EdgeDriver를 자동 준비할 네트워크가 필요합니다.
+현재 파일은 미서명 초기 검증 버전입니다. 실제 회사 PC 설치·SSO·업그레이드·제거 검증은 별도로 필요합니다.
+이전 CMD/ZIP은 기존 환경을 위한 대체 경로로 유지합니다.
+현재 EXE SHA-256: `ad24daf9c2b50660aba8935f5f88b0eb13c2cbfaafc0320fe3677a2a5ac2f4bc`.
+`public/_headers`는 EXE를 첨부 파일로 내려받고 최신 파일을 재확인하도록 지정합니다.
+공개되는 것은 승인된 설치 EXE이며 `.local/`의 원본 소스와 빌드 작업 폴더는 Git에 추가하지 않습니다.
