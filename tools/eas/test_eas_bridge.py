@@ -180,6 +180,14 @@ class BaselineIntegrityTests(unittest.TestCase):
 
 @unittest.skipUnless(HAS_DOM and HAS_SELENIUM, "lxml and Selenium required for fixture DOM tests")
 class BridgeTests(unittest.TestCase):
+    def setUp(self):
+        import tempfile
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        environment = patch.dict('os.environ', {'LOCALAPPDATA': temporary.name})
+        environment.start()
+        self.addCleanup(environment.stop)
+
     def proof(self, driver, payload):
         candidate = find_candidate(driver, payload)
         return capture_registration(driver, payload, candidate)[0]

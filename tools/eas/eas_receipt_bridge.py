@@ -11,10 +11,13 @@ from contextlib import redirect_stdout, redirect_stderr
 from dataclasses import dataclass
 from datetime import datetime
 import importlib
+import os
+from pathlib import Path
 import re
 import sys
 import time
 from urllib.parse import urlsplit
+from unittest.mock import patch
 
 from eas_assistant import (
     SafetyStop, require, read_json, validate_handoff, normalized,
@@ -40,6 +43,40 @@ def baseline_call(function, *args):
     # Functions and their behaviour stay unchanged. Only console output is muted.
     with redirect_stdout(DiscardOutput()), redirect_stderr(DiscardOutput()):
         return function(*args)
+
+
+def edge_profile_directory():
+    """Keep login state outside versioned installer folders, per Windows user."""
+    local = os.environ.get('LOCALAPPDATA')
+    require(bool(local), "Windows LOCALAPPDATA를 확인할 수 없어 로그인 프로필을 열지 않았습니다.")
+    directory = Path(local) / 'AuroraEAS' / 'EdgeProfile'
+    directory.mkdir(parents=True, exist_ok=True)
+    return directory
+
+
+def start_edge_with_profile(baseline):
+    # Preserve the approved baseline's driver/service setup, including aliases
+    # imported with `from selenium.webdriver import Edge`. Only startup options
+    # change; cookies and passwords are managed by Edge, never exported here.
+    from selenium import webdriver
+    directory = edge_profile_directory()
+    original_init = webdriver.Edge.__init__
+
+    def persistent_init(driver, options=None, *args, **kwargs):
+        options = options if options is not None else webdriver.EdgeOptions()
+        # Replace temporary profiles and private browsing rather than allowing
+        # competing flags to silently discard the saved session.
+        options.arguments[:] = [arg for arg in options.arguments if not (
+            arg.lower().split('=', 1)[0] in (
+                '--user-data-dir', '--profile-directory', '--inprivate', '--incognito',
+                '--guest', '--guest-profile'))]
+        options.add_argument(f'--user-data-dir={directory}')
+        options.add_argument('--profile-directory=Default')
+        return original_init(driver, options, *args, **kwargs)
+
+    # Scope the override to synchronous startup and always restore Selenium.
+    with patch.object(webdriver.Edge, '__init__', persistent_init):
+        return baseline_call(baseline.start_edge)
 
 
 def only_visible(root, by, selector, description):
@@ -292,9 +329,9 @@ def connect(payload, baseline, confirm=confirm_desktop, on_stop=None):
     driver = None
     stage = '기존 Edge·로그인·공지 처리'
     try:
-        print("기존 기준 코드로 Edge를 실행합니다. 회사 로그인은 직접 해주세요.")
-        driver = baseline_call(baseline.start_edge)
-        require(driver is not None, "기준 코드의 Edge 실행이 실패했습니다.")
+        print("저장된 EAS 전용 Edge 프로필로 실행합니다. 최초 로그인·세션 만료 시 직접 로그인해주세요.")
+        driver = start_edge_with_profile(baseline)
+        require(driver is not None, "Edge 실행이 실패했습니다. 이전 EAS Edge 창을 모두 닫고 다시 실행해주세요. 저장된 프로필은 삭제하지 않습니다.")
         require(baseline_call(baseline.open_sso_login, driver), "SSO 접속이 실패했습니다.")
         print("사용자 로그인 완료를 자동으로 기다립니다. PyCharm에서 Enter를 누르지 않아도 됩니다.")
         require(baseline_call(baseline.wait_for_login, driver), "로그인 완료 대기 실패입니다.")

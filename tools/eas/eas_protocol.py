@@ -85,7 +85,7 @@ def handle_url(url, confirm=confirm_desktop, run=run_connection):
         f"거래처: {match['merchantName'] or '미입력'}\n금액: {match['amount']:,}원\n"
         f"실사용자: {fields['employeeName']}\n인원수: {fields['attendeeCount']}명\n목적: {fields['purpose']}\n\n"
         '방금 관리자 화면에서 요청한 영수증이 맞습니까?\n'
-        '예를 누르면 Edge를 엽니다. 직접 로그인 후 거래를 추가 대조합니다. 저장은 직접 합니다.'),
+        '예를 누르면 Edge를 엽니다. 저장된 로그인 상태를 사용합니다(최초·만료 시 직접 로그인). 거래를 추가 대조합니다. 저장은 직접 합니다.'),
         '연결 요청을 취소했습니다.')
     # Confirmation may have stayed open beyond the freshness limit.
     parse_app_url(url)
