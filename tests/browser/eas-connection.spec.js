@@ -2,11 +2,12 @@ import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { FakeFirestore } from '../fake-firestore.js';
+import { EAS_INSTALLER } from '../../src/lib/eas-installer.js';
 import { makeGate } from '../../src/lib/admin-gate.js';
 
 test('관리자 PC 연결과 파일 대체 방식은 한 건만 전달하고 Firestore·상태를 변경하지 않는다', async ({
   page,
-}) => {
+}, info) => {
   const fake = new FakeFirestore();
   fake.seed('appSettings/adminGate', await makeGate('test-only-password'));
   const row = {
@@ -70,9 +71,33 @@ test('관리자 PC 연결과 파일 대체 방식은 한 건만 전달하고 Fir
   await expect(setup).toBeInViewport();
   await expect(zip).not.toBeVisible();
   await expect(modal.getByRole('button', { name: '닫기', exact: true })).toBeInViewport();
+  const useFallback = info.project.name === 'galaxy-chromium';
+  let fallbackRequests = 0;
+  if (useFallback) {
+    await page.route('**/downloads/AuroraEAS-Setup.exe?*', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'text/html',
+        body: '<html>asset unavailable</html>',
+      }),
+    );
+    const binary = await readFile(
+      new URL('../../public/downloads/AuroraEAS-Setup.exe', import.meta.url),
+    );
+    await page.route(EAS_INSTALLER.fallback, (route) => {
+      fallbackRequests++;
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/octet-stream',
+        headers: { 'access-control-allow-origin': '*' },
+        body: binary,
+      });
+    });
+  }
   const setupDownload = page.waitForEvent('download');
   await setup.click();
   const setupFile = await setupDownload;
+  expect(fallbackRequests).toBe(useFallback ? 1 : 0);
   expect(setupFile.suggestedFilename()).toBe('AuroraEAS-Setup.exe');
   const setupBytes = await readFile(await setupFile.path());
   expect(setupBytes.subarray(0, 2).toString()).toBe('MZ');

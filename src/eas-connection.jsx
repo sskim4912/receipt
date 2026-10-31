@@ -1,10 +1,25 @@
 import React, { useState } from 'react';
 import { Modal, ErrorBox, Icon } from './ui.jsx';
+import { EAS_INSTALLER, downloadEasInstaller } from './lib/eas-installer.js';
 import { createEasHandoff, createEasAppUrl, downloadEasHandoff } from './lib/eas-handoff.js';
 
 export function EasConnection({ receipt, onClose }) {
   const [launchMessage, setLaunchMessage] = useState('');
   const [launchError, setLaunchError] = useState('');
+  const [installing, setInstalling] = useState(false);
+  async function downloadInstaller(event) {
+    event.preventDefault();
+    if (installing) return;
+    setInstalling(true);
+    setLaunchError('');
+    try {
+      await downloadEasInstaller();
+    } catch (err) {
+      setLaunchError(err.message);
+    } finally {
+      setInstalling(false);
+    }
+  }
   function openAssistant(event) {
     try {
       // Generate at the click, so the five-minute PC handoff is always fresh.
@@ -75,10 +90,14 @@ export function EasConnection({ receipt, onClose }) {
         <p className="eas-first-label">처음 사용하는 PC인가요?</p>
         <a
           className="button full"
-          href="/downloads/AuroraEAS-Setup.exe?v=ad24daf9c2b5"
-          download="AuroraEAS-Setup.exe"
+          href={EAS_INSTALLER.path}
+          download={EAS_INSTALLER.fileName}
+          onClick={downloadInstaller}
+          aria-disabled={installing}
+          aria-busy={installing}
         >
-          <Icon name="download" size={20} /> PC 자동 설치 다운로드
+          <Icon name="download" size={20} />{' '}
+          {installing ? '설치 파일 준비 중…' : 'PC 자동 설치 다운로드'}
         </a>
       </div>
       <div className="eas-content">
@@ -131,6 +150,7 @@ export function EasConnection({ receipt, onClose }) {
         <details>
           <summary>설치·연결이 안 될 때</summary>
           <div className="eas-download-links">
+            <a href={EAS_INSTALLER.fallback}>EXE 대체 다운로드</a>
             <a href="/downloads/aurora-eas-windows.zip" download>
               ZIP 직접 다운로드
             </a>
