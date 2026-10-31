@@ -54,6 +54,10 @@ def show_message(message, error=False):
         root.destroy()
 
 
+class ConnectionAlreadyRunning(SafetyStop):
+    pass
+
+
 class SingleConnection:
     """One connection per Windows session; closing its Edge releases the lock."""
     def __enter__(self):
@@ -64,11 +68,12 @@ class SingleConnection:
         self.api.CreateMutexW.restype = wintypes.HANDLE
         self.api.CloseHandle.argtypes = [wintypes.HANDLE]
         self.api.CloseHandle.restype = wintypes.BOOL
+        ctypes.set_last_error(0)
         self.handle = self.api.CreateMutexW(None, False, 'Local\\AuroraEASConnectionV1')
         require(self.handle, '연결 실행 상태를 확인할 수 없습니다.')
         if ctypes.get_last_error() == 183:
             self.api.CloseHandle(self.handle)
-            raise SafetyStop('이미 전자전표 연결이 실행 중입니다. 이전 연결로 열린 Edge를 닫고 다시 연결하세요.')
+            raise ConnectionAlreadyRunning('이미 전자전표 연결이 실행 중입니다. 이전 연결로 열린 Edge를 닫고 다시 연결하세요.')
         return self
 
     def __exit__(self, *_):
@@ -85,7 +90,7 @@ def handle_url(url, confirm=confirm_desktop, run=run_connection):
         f"거래처: {match['merchantName'] or '미입력'}\n금액: {match['amount']:,}원\n"
         f"실사용자: {fields['employeeName']}\n인원수: {fields['attendeeCount']}명\n목적: {fields['purpose']}\n\n"
         '방금 관리자 화면에서 요청한 영수증이 맞습니까?\n'
-        '예를 누르면 Edge를 엽니다. 저장된 로그인 상태를 사용합니다(최초·만료 시 직접 로그인). 거래를 추가 대조합니다. 저장은 직접 합니다.'),
+        '예를 누르면 기존 EAS 창을 재사용하거나 Edge를 엽니다. 이전 화면에서 작성 중인 내용은 먼저 저장·취소해주세요. 저장된 로그인 상태를 사용하며 최초·만료 시 직접 로그인합니다. 거래를 추가 대조하고 저장은 직접 합니다.'),
         '연결 요청을 취소했습니다.')
     # Confirmation may have stayed open beyond the freshness limit.
     parse_app_url(url)

@@ -11,6 +11,9 @@ README = '''Aurora EAS 간편 설치 안내
 3. 압축을 푼 폴더에서 AuroraEAS-Setup.exe를 실행합니다.
 4. 설치 후 영수증관리 시스템의 'EAS 보조 프로그램으로 연결'을 누릅니다.
 
+이미 설치된 PC를 업데이트할 때는 기존 EAS Edge와 보조 프로그램을 먼저 종료해주세요.
+새 버전 설치 후에는 같은 EAS 창에서 다음 영수증을 계속 연결할 수 있습니다.
+
 Python과 Selenium을 따로 설치할 필요는 없습니다.
 Windows 10/11 64비트와 Microsoft Edge가 필요합니다.
 최초 연결 시 EdgeDriver 자동 준비를 위해 인터넷 접속이 필요합니다.

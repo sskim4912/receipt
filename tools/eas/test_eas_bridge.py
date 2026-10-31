@@ -345,6 +345,19 @@ class BridgeTests(unittest.TestCase):
         self.assertEqual(set(driver.edited), {'useName', 'empCnt', 'resn'})
         self.assertNotIn('save', driver.clicked)
 
+    def test_empty_list_reports_query_guidance_without_waiting_for_rows(self):
+        driver = Driver()
+        for row in driver.dom.xpath('//tr[contains(@class, "IBDataRow")]'):
+            row.getparent().remove(row)
+        baseline = Baseline(driver)
+        baseline.prepare_eas = lambda current: True
+        messages = []
+        with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+            result = connect(sample(), baseline, lambda *_: self.fail('no transaction approval'), on_stop=messages.append)
+        self.assertEqual(result, 1)
+        self.assertTrue(any('조회된 거래가 없습니다' in m for m in messages))
+        self.assertFalse(driver.edited)
+
     def test_notice_failure_is_checked_before_matching(self):
         driver = Driver()
         baseline = Baseline(driver, notices=False)

@@ -4,7 +4,7 @@ import unittest
 from unittest.mock import Mock, patch
 
 from eas_assistant import SafetyStop
-from eas_startup import wait_for_list, prepare_eas
+from eas_startup import wait_for_list, prepare_eas, LOADING, wait_for_login_alive
 
 LIST = 'https://eas.gsenc.com/ep/cc/vouc/EpCcVouc0001'
 LOGIN = 'https://sso.gsenc.com/sso/std/ssoLogin_pin.jsp'
@@ -23,10 +23,13 @@ class Grid:
 
 class Driver:
     current_url = LIST
+    window_handles = ['tab']
     def __init__(self, clock, ready_after=0, popup_at=None):
         self.clock, self.ready_after, self.popup_at = clock, ready_after, popup_at
         self.closed = False
     def find_elements(self, by, selector):
+        if selector == LOADING:
+            return []
         if selector == '.notice':
             return [Grid()] if self.popup_at is not None and self.clock() >= self.popup_at and not self.closed else []
         return [Grid()] if self.clock() >= self.ready_after else []
@@ -39,6 +42,32 @@ def baseline():
 
 
 class StartupTests(unittest.TestCase):
+    def test_closed_browser_does_not_hold_login_or_list_wait(self):
+        driver = SimpleNamespace(window_handles=[])
+        clock = Clock()
+        original = baseline()
+        original.LOGIN_TIMEOUT, original.LOGIN_STABLE_SECONDS = 600, 3
+        with self.assertRaisesRegex(SafetyStop, '닫혔습니다'):
+            wait_for_login_alive(driver, original, clock=clock, sleep=clock.sleep)
+        with self.assertRaisesRegex(SafetyStop, '닫혔습니다'):
+            wait_for_list(driver, original, clock=clock, sleep=clock.sleep)
+        self.assertEqual(clock(), 0)
+
+    def test_empty_rendered_list_is_ready_instead_of_waiting_sixty_seconds(self):
+        class EmptyGrid(Grid):
+            def find_elements(self, *args): return []
+        clock = Clock()
+        driver = Driver(clock)
+        driver.find_elements = lambda by, selector: [EmptyGrid()] if selector.endswith('1"]') else []
+        self.assertTrue(wait_for_list(driver, baseline(), clock=clock, sleep=clock.sleep))
+        self.assertLess(clock(), 1.1)
+
+    def test_reused_list_preserves_user_search_filters(self):
+        driver = Mock(current_url=LIST)
+        with patch('eas_startup.wait_for_list', return_value=True):
+            self.assertTrue(prepare_eas(driver, baseline()))
+        driver.get.assert_not_called()
+
     def test_ready_session_has_no_login_or_eight_second_notice_wait(self):
         clock = Clock()
         driver, original = Driver(clock), baseline()

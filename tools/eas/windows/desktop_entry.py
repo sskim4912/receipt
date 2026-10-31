@@ -6,6 +6,8 @@ import importlib.util
 from pathlib import Path
 import sys
 from eas_startup import install_fast_startup
+from eas_session import run_desktop_session, self_test_pipe
+from eas_assistant import SafetyStop
 
 BASELINE_SHA256 = 'd66a47a6c4ea3094cc3dc2ec8c39bd57601cda3b24eac2ef89acc6e3001e3186'
 
@@ -53,7 +55,7 @@ def main():
             tkinter.Tcl().eval('info patchlevel')
             if not SeleniumManager._get_binary().is_file():
                 return 1
-            return 0
+            return 0 if self_test_pipe() else 1
         except Exception:
             return 1
     # A check never loads corporate code or starts a browser.
@@ -66,7 +68,6 @@ def main():
         from selenium import webdriver
         from selenium.webdriver.edge.service import Service
         from unittest.mock import patch
-        load_packaged_baseline(directory)
         original = webdriver.Edge.__init__
 
         def managed_init(driver, options=None, service=None, keep_alive=True):
@@ -77,7 +78,10 @@ def main():
             return original(driver, options=options, service=service, keep_alive=keep_alive)
 
         with patch.object(webdriver.Edge, '__init__', managed_init):
-            return receive()
+            return run_desktop_session(sys.argv[1], lambda: load_packaged_baseline(directory))
+    except SafetyStop as error:
+        show_message(str(error), error=True)
+        return 1
     except Exception:
         # Do not display corporate module exceptions, URLs, tokens or payloads.
         show_message('접속 모듈을 시작하지 못했습니다. 사내 담당자에게 설치 버전과 Edge·드라이버 호환 여부를 확인해주세요.', error=True)

@@ -102,14 +102,16 @@ class ProtocolTests(unittest.TestCase):
         api = Mock()
         api.CreateMutexW.return_value = 123456789012
         with patch.object(protocol.os, 'name', 'nt'), patch.object(protocol.ctypes, 'WinDLL', return_value=api, create=True), \
-             patch.object(protocol.ctypes, 'get_last_error', return_value=183, create=True):
+             patch.object(protocol.ctypes, 'get_last_error', return_value=183, create=True), \
+             patch.object(protocol.ctypes, 'set_last_error', create=True):
             with self.assertRaises(SafetyStop):
                 with protocol.SingleConnection():
                     self.fail('must not enter')
         api.CloseHandle.assert_called_once_with(123456789012)
         api.reset_mock()
         with patch.object(protocol.os, 'name', 'nt'), patch.object(protocol.ctypes, 'WinDLL', return_value=api, create=True), \
-             patch.object(protocol.ctypes, 'get_last_error', return_value=0, create=True):
+             patch.object(protocol.ctypes, 'get_last_error', return_value=0, create=True), \
+             patch.object(protocol.ctypes, 'set_last_error', create=True):
             with protocol.SingleConnection():
                 pass
         api.CloseHandle.assert_called_once_with(123456789012)

@@ -182,7 +182,7 @@ def find_candidate(driver, payload):
     require(urlsplit(driver.current_url).path == "/ep/cc/vouc/EpCcVouc0001", "EAS 사용내역 목록 화면이 아닙니다.")
     grid = only_visible(driver, "css selector", GRID_SELECTOR, "사용내역 목록")
     rows = [row for row in grid.find_elements("css selector", "tr.IBDataRow") if row.is_displayed()]
-    require(rows, "표시된 거래가 없습니다. 사용내역 목록을 먼저 조회하세요.")
+    require(rows, "현재 EAS 목록에 조회된 거래가 없습니다. 조회 기간·카드·처리 상태를 확인해 EAS에서 조회한 뒤 다시 연결해주세요. 기존 EAS 창을 그대로 사용합니다.")
     candidates = []
     for row in rows:
         values, _ = read_list_row(row)
@@ -353,7 +353,7 @@ def connect(payload, baseline, confirm=confirm_desktop, on_stop=None):
             require(urlsplit(current.current_url).path == "/ep/cc/vouc/EpCcVouc0001", "EAS 사용내역 목록 화면이 아닙니다.")
             elements = [e for e in current.find_elements("css selector", GRID_SELECTOR) if e.is_displayed()]
             require(len(elements) <= 1, "사용내역 목록을 하나로 확정할 수 없습니다.")
-            return bool(elements and elements[0].find_elements("css selector", "tr.IBDataRow"))
+            return bool(elements)
 
         WebDriverWait(driver, 20).until(grid_ready)
         stage = '목록 거래 대조'

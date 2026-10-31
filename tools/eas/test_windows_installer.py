@@ -126,7 +126,7 @@ class StandaloneBuildTests(unittest.TestCase):
             with patch.object(sys, 'argv', ['AuroraEAS.exe', 'aurora-eas://connect/fixture']), \
                  patch.object(sys, '_MEIPASS', root, create=True), \
                  patch.object(entry, 'load_packaged_baseline'), \
-                 patch('eas_protocol.main', receive), \
+                 patch.object(entry, 'run_desktop_session', side_effect=lambda url, factory: receive()), \
                  patch.object(webdriver.Edge, '__init__', original):
                 self.assertEqual(entry.main(), 0)
                 self.assertIs(webdriver.Edge.__init__, original)
