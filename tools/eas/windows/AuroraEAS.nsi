@@ -16,10 +16,10 @@ InstallDir "$LOCALAPPDATA\AuroraEAS\DesktopApp"
 SetCompressor /SOLID lzma
 ShowInstDetails show
 ShowUninstDetails show
-VIProductVersion "1.2.0.0"
+VIProductVersion "1.2.1.0"
 VIAddVersionKey "ProductName" "Aurora EAS"
 VIAddVersionKey "FileDescription" "Aurora EAS per-user setup"
-VIAddVersionKey "FileVersion" "1.2.0.0"
+VIAddVersionKey "FileVersion" "1.2.1.0"
 VIAddVersionKey "LegalCopyright" "Aurora EAS"
 !define MUI_ABORTWARNING
 !define MUI_FINISHPAGE_RUN "$INSTDIR\AuroraEAS.exe"
@@ -66,12 +66,16 @@ Section "Aurora EAS"
   WriteRegStr HKCU "Software\Classes\aurora-eas" "URL Protocol" ""
   WriteRegStr HKCU "Software\Classes\aurora-eas\shell\open\command" "" '$\"$INSTDIR\AuroraEAS.exe$\" $\"%1$\"'
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\AuroraEAS" "DisplayName" "Aurora EAS"
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\AuroraEAS" "DisplayVersion" "1.2.0"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\AuroraEAS" "DisplayVersion" "1.2.1"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\AuroraEAS" "UninstallString" '$\"$INSTDIR\Uninstall.exe$\"'
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\AuroraEAS" "QuietUninstallString" '$\"$INSTDIR\Uninstall.exe$\" /S'
   WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\AuroraEAS" "NoModify" 1
   WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\AuroraEAS" "NoRepair" 1
-  WriteINIStr "$DESKTOP\Aurora EAS Portal.url" "InternetShortcut" "URL" "https://receipt.sskim4912.workers.dev/"
+  ReadINIStr $0 "$DESKTOP\Aurora EAS Portal.url" "InternetShortcut" "URL"
+  ${If} $0 == "https://receipt.sskim4912.workers.dev/"
+    Delete "$DESKTOP\Aurora EAS Portal.url"
+  ${EndIf}
+  WriteINIStr "$DESKTOP\Aurora EAS 전자전표.url" "InternetShortcut" "URL" "https://receipt.sskim4912.workers.dev/"
   CreateShortcut "$DESKTOP\Aurora EAS Connection Check.lnk" "$INSTDIR\AuroraEAS.exe" "aurora-eas://check"
 SectionEnd
 
@@ -83,7 +87,7 @@ Section "Uninstall"
     DeleteRegKey HKCU "Software\Classes\aurora-eas"
   ${EndIf}
   DeleteRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\AuroraEAS"
-  Delete "$DESKTOP\Aurora EAS Portal.url"
+  Delete "$DESKTOP\Aurora EAS 전자전표.url"
   Delete "$DESKTOP\Aurora EAS Connection Check.lnk"
   Delete "$INSTDIR\AuroraEAS.exe"
   RMDir /r "$INSTDIR\_internal"

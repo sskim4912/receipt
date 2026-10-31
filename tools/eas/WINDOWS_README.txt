@@ -48,5 +48,5 @@ INSTALL.cmd가 Python을 못 찾으면 기존 PyCharm 터미널에서:
 기존 파일 선택 방식도 보존됩니다. 설치가 제한되면 웹 도움말의 파일 다운로드를 사용하세요.
 
 포탈의 PC 자동 설치 다운로드는 CMD 1개를 실행하면 ZIP 검증·바탕화면 압축 해제·설치를 시작합니다.
-완료 후 바탕화면 Aurora EAS Portal / Connection Check 바로가기를 사용하세요.
+완료 후 바탕화면 Aurora EAS 전자전표 / Connection Check 바로가기를 사용하세요.
 Python과 사내 검증 기준 코드가 없는 PC에서는 담당자의 최초 준비가 필요합니다.

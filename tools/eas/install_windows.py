@@ -1,6 +1,7 @@
 """One-time current-user Windows registration; no admin rights or task service."""
 from __future__ import annotations
 
+import configparser
 import hashlib
 import os
 from pathlib import Path
@@ -106,8 +107,17 @@ def create_desktop_shortcuts():
     """Use the user's redirected Desktop (including OneDrive), not a hardcoded path."""
     desktop = desktop_directory()
     desktop.mkdir(parents=True, exist_ok=True)
+    old = desktop / 'Aurora EAS Portal.url'
+    if old.is_file():
+        parser = configparser.ConfigParser(interpolation=None)
+        try:
+            parser.read_string(old.read_text(encoding='utf-8-sig'))
+            if parser.get('InternetShortcut', 'URL', fallback='') == 'https://receipt.sskim4912.workers.dev/':
+                old.unlink()
+        except (OSError, UnicodeError, configparser.Error):
+            pass
     for name, url in (
-        ('Aurora EAS Portal.url', 'https://receipt.sskim4912.workers.dev/'),
+        ('Aurora EAS 전자전표.url', 'https://receipt.sskim4912.workers.dev/'),
         ('Aurora EAS Connection Check.url', 'aurora-eas://check'),
     ):
         (desktop / name).write_bytes(f'[InternetShortcut]\r\nURL={url}\r\n'.encode('ascii'))
@@ -169,7 +179,7 @@ def install(root):
          '" "%~dp0install_windows.py" --uninstall\r\npause\r\n').encode('utf-8'))
     try:
         create_desktop_shortcuts()
-        desktop_notice = '바탕화면에 Aurora EAS Portal과 Connection Check 바로가기를 만들었습니다.\n'
+        desktop_notice = '바탕화면에 Aurora EAS 전자전표와 Connection Check 바로가기를 만들었습니다.\n'
     except OSError:
         desktop_notice = '바탕화면 바로가기는 만들지 못했습니다. 웹 화면에서 PC 연결 상태 확인을 눌러주세요.\n'
     messagebox.showinfo('설정 완료',

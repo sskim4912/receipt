@@ -8,7 +8,7 @@
 [Setup]
 AppId={{9A780581-58B0-4AA8-8726-1EAD93477D83}
 AppName=Aurora EAS
-AppVersion=1.2.0
+AppVersion=1.2.1
 DefaultDirName={localappdata}\AuroraEAS\DesktopApp
 DefaultGroupName=Aurora EAS
 PrivilegesRequired=lowest
@@ -34,9 +34,9 @@ Root: HKCU; Subkey: "Software\Classes\aurora-eas"; ValueName: "URL Protocol"; Va
 Root: HKCU; Subkey: "Software\Classes\aurora-eas\shell\open\command"; ValueType: string; ValueData: """{app}\AuroraEAS.exe"" ""%1"""
 
 [Icons]
-Name: "{autodesktop}\Aurora EAS Portal"; Filename: "https://receipt.sskim4912.workers.dev/"
+Name: "{autodesktop}\Aurora EAS 전자전표"; Filename: "https://receipt.sskim4912.workers.dev/"
 Name: "{autodesktop}\Aurora EAS Connection Check"; Filename: "{app}\AuroraEAS.exe"; Parameters: "aurora-eas://check"
-Name: "{group}\Aurora EAS Portal"; Filename: "https://receipt.sskim4912.workers.dev/"
+Name: "{group}\Aurora EAS 전자전표"; Filename: "https://receipt.sskim4912.workers.dev/"
 Name: "{group}\Uninstall Aurora EAS"; Filename: "{uninstallexe}"
 
 [Run]
@@ -73,4 +73,15 @@ begin
     if RegQueryStringValue(HKCU, 'Software\Classes\aurora-eas\shell\open\command', '', CurrentCommand) then
       if CompareText(CurrentCommand, '"' + ExpandConstant('{app}\AuroraEAS.exe') + '" "%1"') = 0 then
         RegDeleteKeyIncludingSubkeys(HKCU, 'Software\Classes\aurora-eas');
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  OldShortcut: String;
+begin
+  if CurStep = ssPostInstall then begin
+    OldShortcut := ExpandConstant('{autodesktop}\Aurora EAS Portal.url');
+    if GetIniString('InternetShortcut', 'URL', '', OldShortcut) = 'https://receipt.sskim4912.workers.dev/' then
+      DeleteFile(OldShortcut);
+  end;
 end;

@@ -53,8 +53,11 @@ class InstallTests(unittest.TestCase):
             stack.enter_context(patch.object(installer, 'interpreter_works', return_value=True))
             stack.enter_context(patch.object(installer, 'discover_baselines', return_value=[baseline]))
             stack.enter_context(patch.object(installer, 'desktop_directory', return_value=root / 'desktop'))
+            (root / 'desktop').mkdir()
+            (root / 'desktop/Aurora EAS Portal.url').write_text('[InternetShortcut]\nURL=https://receipt.sskim4912.workers.dev/\n')
             installer.install(object())
-            self.assertIn('https://receipt.sskim4912.workers.dev/', (root / 'desktop/Aurora EAS Portal.url').read_text())
+            self.assertFalse((root / 'desktop/Aurora EAS Portal.url').exists())
+            self.assertIn('https://receipt.sskim4912.workers.dev/', (root / 'desktop/Aurora EAS 전자전표.url').read_text())
             self.assertIn('aurora-eas://check', (root / 'desktop/Aurora EAS Connection Check.url').read_text())
             key = installer.REG_PATH + r'\shell\open\command'
             first_command = values[key, '']
