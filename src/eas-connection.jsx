@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Modal, ErrorBox } from './ui.jsx';
+import { Modal, ErrorBox, Icon } from './ui.jsx';
 import { createEasHandoff, createEasAppUrl, downloadEasHandoff } from './lib/eas-handoff.js';
 
 export function EasConnection({ receipt, onClose }) {
@@ -14,7 +14,7 @@ export function EasConnection({ receipt, onClose }) {
       event.currentTarget.href = url;
       setLaunchError('');
       setLaunchMessage(
-        '브라우저에서 프로그램 열기를 허용해주세요. 반응이 없으면 처음이라면 PC 자동 설치 파일을 내려받아 실행하세요.',
+        '브라우저에서 프로그램 열기를 허용해주세요. 처음 사용하는 PC라면 설치 파일을 내려받아 실행하세요.',
       );
     } catch (err) {
       event.preventDefault();
@@ -30,13 +30,25 @@ export function EasConnection({ receipt, onClose }) {
   }
   return (
     <Modal title="전자전표 연결" onClose={onClose} className="eas-dialog">
+      <dl className="eas-receipt-summary" aria-label="연결할 영수증">
+        <div>
+          <dt>사용일자</dt>
+          <dd>{receipt.receiptDate?.replaceAll('-', '.') || '확인 필요'}</dd>
+        </div>
+        <div>
+          <dt>업체명</dt>
+          <dd>{receipt.merchantName || '확인 필요'}</dd>
+        </div>
+        <div>
+          <dt>금액</dt>
+          <dd>
+            {Number.isFinite(receipt.amount)
+              ? `${receipt.amount.toLocaleString('ko-KR')}원`
+              : '확인 필요'}
+          </dd>
+        </div>
+      </dl>
       <div className="eas-actions">
-        <a className="button full" href="/downloads/AuroraEAS-Setup.cmd" download>
-          처음 사용 · PC 자동 설치 다운로드
-        </a>
-        <p className="muted">
-          다운로드한 파일을 실행하면 바탕화면에 설치 파일을 풀고 설정을 시작합니다.
-        </p>
         {appUrl ? (
           <a
             className="button primary full"
@@ -59,14 +71,11 @@ export function EasConnection({ receipt, onClose }) {
             EAS 보조 프로그램으로 연결
           </button>
         )}
-        <div className="eas-download-links">
-          <a href="/downloads/aurora-eas-windows.zip" download>
-            ZIP 직접 다운로드
-          </a>
-          <a href="aurora-eas://check" target="_blank" rel="noopener noreferrer">
-            PC 연결 상태 확인
-          </a>
-        </div>
+        <p className="muted eas-launch-hint">설치한 PC에서는 바로 연결하세요.</p>
+        <p className="eas-first-label">처음 사용하는 PC인가요?</p>
+        <a className="button full" href="/downloads/AuroraEAS-Setup.cmd" download>
+          <Icon name="download" size={20} /> PC 자동 설치 다운로드
+        </a>
       </div>
       <div className="eas-content">
         <ErrorBox message={error || launchError} />
@@ -76,21 +85,55 @@ export function EasConnection({ receipt, onClose }) {
           </p>
         )}
         {launchMessage && <p role="status">{launchMessage}</p>}
-        <p className="eas-receipt-summary">
-          <strong>{payload?.fields.employeeName || '확인 필요'}</strong>
-          {' · '}
-          {payload ? `${payload.fields.attendeeCount}명` : '인원 확인 필요'}
-          <span>{payload?.fields.purpose || '목적 확인 필요'}</span>
-        </p>
+        <h3 className="eas-guide-title">처음 한 번, 간편하게 시작하기</h3>
         <ol className="eas-steps">
-          <li>처음에는 위 설치 파일을 받아 실행하세요. Python과 사내 기준 코드가 필요합니다.</li>
-          <li>설치 후 연결 버튼을 누르고 브라우저의 프로그램 열기를 허용하세요.</li>
           <li>
-            최초·세션 만료 시 Edge에서 로그인하고 거래와 입력 내용을 확인하세요. 저장은 직접 합니다.
+            <span className="eas-step-icon">
+              <Icon name="download" />
+            </span>
+            <div>
+              <strong>1. 설치 파일 다운로드</strong>
+              <p>처음 사용하는 PC에서는 ‘PC 자동 설치 다운로드’를 눌러 파일을 받으세요.</p>
+            </div>
+          </li>
+          <li>
+            <span className="eas-step-icon">
+              <Icon name="check" />
+            </span>
+            <div>
+              <strong>2. 다운로드한 파일 실행</strong>
+              <p>
+                <code>AuroraEAS-Setup.cmd</code>를 실행하고 설치 안내를 따라주세요. ZIP 다운로드와
+                압축 해제, 설치 시작은 자동으로 진행됩니다.
+              </p>
+            </div>
+          </li>
+          <li>
+            <span className="eas-step-icon">
+              <Icon name="arrow" />
+            </span>
+            <div>
+              <strong>3. 다음부터는 바로 접속</strong>
+              <p>
+                설치 완료 후에는 ‘EAS 보조 프로그램으로 연결’만 누르면 GS건설 EIP 화면으로
+                접속됩니다.
+              </p>
+              <p className="muted">
+                로그인이 만료된 경우에는 다시 로그인해주세요. 저장은 직접 합니다.
+              </p>
+            </div>
           </li>
         </ol>
         <details>
-          <summary>최초 1회 PC 설정 · 연결 도움말</summary>
+          <summary>설치·연결이 안 될 때</summary>
+          <div className="eas-download-links">
+            <a href="/downloads/aurora-eas-windows.zip" download>
+              ZIP 직접 다운로드
+            </a>
+            <a href="aurora-eas://check" target="_blank" rel="noopener noreferrer">
+              PC 연결 상태 확인
+            </a>
+          </div>
           <p>
             Windows PC용입니다. 브라우저가 자동으로 설치하거나 다운로드한 파일을 실행할 수는
             없습니다. 자동 설치 파일을 직접 실행하면 바탕화면에 압축을 풀고 설치를 시작합니다.

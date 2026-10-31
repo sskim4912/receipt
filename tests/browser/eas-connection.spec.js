@@ -59,12 +59,16 @@ test('관리자 PC 연결과 파일 대체 방식은 한 건만 전달하고 Fir
   await page.getByRole('button', { name: '전자전표 연결', exact: true }).click();
   await page.setViewportSize({ width: page.viewportSize().width, height: 600 });
   const modal = page.getByRole('dialog', { name: '전자전표 연결', exact: true });
-  await expect(modal).toContainText('현장 인원 식사');
-  const setup = modal.getByRole('link', { name: '처음 사용 · PC 자동 설치 다운로드' });
+  await expect(modal.getByLabel('연결할 영수증')).toContainText('2026.10.28');
+  await expect(modal.getByLabel('연결할 영수증')).toContainText('테스트 매장');
+  await expect(modal.getByLabel('연결할 영수증')).toContainText('25,000원');
+  await expect(modal).not.toContainText('현장 인원 식사');
+  await expect(modal).toContainText('AuroraEAS-Setup.cmd');
+  const setup = modal.getByRole('link', { name: 'PC 자동 설치 다운로드' });
   const zip = modal.getByRole('link', { name: 'ZIP 직접 다운로드' });
   // No help expansion or scrolling needed to find the setup and launch actions.
   await expect(setup).toBeInViewport();
-  await expect(zip).toBeInViewport();
+  await expect(zip).not.toBeVisible();
   await expect(modal.getByRole('button', { name: '닫기', exact: true })).toBeInViewport();
   const setupDownload = page.waitForEvent('download');
   await setup.click();
@@ -72,6 +76,7 @@ test('관리자 PC 연결과 파일 대체 방식은 한 건만 전달하고 Fir
   expect(setupFile.suggestedFilename()).toBe('AuroraEAS-Setup.cmd');
   const setupBytes = await readFile(await setupFile.path());
   expect(setupBytes.toString()).toContain('Get-FileHash -Algorithm SHA256');
+  await modal.getByText('설치·연결이 안 될 때', { exact: true }).click();
   const zipDownload = page.waitForEvent('download');
   await zip.click();
   const zipFile = await zipDownload;
@@ -79,15 +84,13 @@ test('관리자 PC 연결과 파일 대체 방식은 한 건만 전달하고 Fir
   const zipBytes = await readFile(await zipFile.path());
   expect(zipBytes.subarray(0, 4).toString('hex')).toBe('504b0304');
   expect(setupBytes.toString()).toContain(createHash('sha256').update(zipBytes).digest('hex'));
+  await modal.getByText('설치·연결이 안 될 때', { exact: true }).click();
   await page.screenshot({ path: `.local/eas-dialog-${page.viewportSize().width}.png` });
   await expect(modal).toContainText('저장은 직접');
   const appLink = modal.getByRole('button', { name: 'EAS 보조 프로그램으로 연결', exact: true });
   await expect(appLink).toHaveAttribute('target', '_blank');
   await expect(appLink).toHaveAttribute('rel', 'noopener noreferrer');
   await expect(modal.locator('iframe')).toHaveCount(0);
-  const checkLink = modal.getByRole('link', { name: 'PC 연결 상태 확인', exact: true });
-  await expect(checkLink).toHaveAttribute('href', 'aurora-eas://check');
-  await expect(checkLink).toHaveAttribute('target', '_blank');
   let downloads = 0;
   page.on('download', () => downloads++);
   const popupPromise = page.waitForEvent('popup');
@@ -107,13 +110,16 @@ test('관리자 PC 연결과 파일 대체 방식은 한 건만 전달하고 Fir
   expect(appPayload).not.toHaveProperty('voucherStatus');
   expect(downloads).toBe(0);
   expect(writes).toBe(0);
-  await modal.getByText('최초 1회 PC 설정 · 연결 도움말', { exact: true }).click();
+  await modal.getByText('설치·연결이 안 될 때', { exact: true }).click();
   await modal.locator('.eas-content').evaluate((element) => {
     element.scrollTop = element.scrollHeight;
   });
   await expect(setup).toBeInViewport();
   await expect(appLink).toBeInViewport();
   await expect(modal.getByRole('button', { name: '닫기', exact: true })).toBeInViewport();
+  const checkLink = modal.getByRole('link', { name: 'PC 연결 상태 확인', exact: true });
+  await expect(checkLink).toHaveAttribute('href', 'aurora-eas://check');
+  await expect(checkLink).toHaveAttribute('target', '_blank');
   const installer = await page.request.get('/downloads/aurora-eas-windows.zip');
   expect(installer.ok()).toBe(true);
   expect((await installer.body()).subarray(0, 4).toString('hex')).toBe('504b0304');
