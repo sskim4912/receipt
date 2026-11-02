@@ -94,16 +94,11 @@ class StandaloneBuildTests(unittest.TestCase):
         self.assertEqual(command[1], '/DAppDist=C:/private build/dist/AuroraEAS')
 
     def test_check_does_not_load_private_code_or_open_browser(self):
-        from types import SimpleNamespace
-        receive = SimpleNamespace(calls=0)
-        def check():
-            receive.calls += 1
-            return 0
         with patch.object(sys, 'argv', ['AuroraEAS.exe', 'aurora-eas://check']), \
-             patch('eas_protocol.main', check), \
+             patch('eas_protocol.show_message') as message, \
              patch.object(entry, 'load_packaged_baseline', side_effect=AssertionError('private import')):
             self.assertEqual(entry.main(), 0)
-            self.assertEqual(receive.calls, 1)
+            self.assertIn(entry.APP_VERSION, message.call_args.args[0])
 
     def test_windows_build_is_not_reported_on_linux(self):
         if builder.os.name == 'nt':

@@ -102,7 +102,7 @@ test('관리자 PC 연결과 파일 대체 방식은 한 건만 전달하고 Fir
   const setupBytes = await readFile(await setupFile.path());
   expect(setupBytes.subarray(0, 4).toString('hex')).toBe('504b0304');
   expect(createHash('sha256').update(setupBytes).digest('hex')).toBe(
-    '7fb5588a0d61c5de25c35fd80aead28df4d245b90198b49ac4263539d328354c',
+    'b6a36734556ea04537067a9b6628f0d072a2d6be88c6eeb03e9f55672ad0a180',
   );
   await modal.getByText('설치·연결이 안 될 때', { exact: true }).click();
   const zipDownload = page.waitForEvent('download');

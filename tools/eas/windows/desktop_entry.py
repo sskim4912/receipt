@@ -9,6 +9,7 @@ from eas_startup import install_fast_startup
 from eas_session import run_desktop_session, self_test_pipe
 from eas_assistant import SafetyStop
 
+APP_VERSION = '1.2.2'
 BASELINE_SHA256 = 'd66a47a6c4ea3094cc3dc2ec8c39bd57601cda3b24eac2ef89acc6e3001e3186'
 
 
@@ -29,6 +30,7 @@ def load_packaged_baseline(directory):
     except BaseException:
         sys.modules.pop('eas_card_automation', None)
         raise
+    module.app_version = APP_VERSION
     if callable(getattr(module, 'start_edge', None)):
         install_fast_startup(module)
     return module
@@ -60,7 +62,8 @@ def main():
             return 1
     # A check never loads corporate code or starts a browser.
     if len(sys.argv) == 2 and is_check_url(sys.argv[1]):
-        return receive()
+        show_message(f'PC 연결 프로그램이 정상 등록됐습니다. 버전: {APP_VERSION}. 관리자 화면에서 영수증을 연결하세요.')
+        return 0
     if len(sys.argv) != 2:
         show_message('설치가 완료된 PC에서는 업무 포탈의 EAS 보조 프로그램으로 연결을 눌러주세요.')
         return 0

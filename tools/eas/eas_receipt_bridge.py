@@ -54,12 +54,33 @@ def edge_profile_directory():
     return directory
 
 
+
+def edge_failure_message(error):
+    """Classify locally; never expose raw errors containing paths or SSO URLs."""
+    from selenium.common.exceptions import NoSuchDriverException
+    text = str(error).lower()
+    if 'only supports' in text and 'version' in text:
+        return '[EDGE-VERSION] 직원 PC의 Edge와 EdgeDriver 버전이 맞지 않습니다. Edge 업데이트와 드라이버 준비 상태를 확인해주세요.'
+    if any(x in text for x in ('user data directory is already in use', 'profile appears to be in use', 'profile is already in use', 'singletonlock')):
+        return '[EDGE-PROFILE] EAS 전용 프로필을 다른 Edge가 사용 중입니다. 작성 중인 내용을 확인하고 기존 EAS Edge·보조 프로그램을 종료한 뒤 다시 연결해주세요. 로그인 프로필은 삭제하지 않습니다.'
+    if isinstance(error, PermissionError) or any(x in text for x in ('access is denied', 'winerror 5', 'blocked by policy')):
+        return '[EDGE-POLICY] 직원 PC에서 Edge 또는 드라이버 실행 권한이 거부됐습니다. 회사 담당자에게 실행 허용 여부를 확인해주세요.'
+    if any(x in text for x in ('cannot find microsoft edge binary', 'no microsoft edge binary')):
+        return '[EDGE-MISSING] 직원 PC에서 Microsoft Edge 실행 파일을 찾지 못했습니다. Edge 설치 상태를 확인해주세요.'
+    if isinstance(error, NoSuchDriverException) or 'unable to obtain driver' in text:
+        return '[EDGE-DRIVER] EdgeDriver를 준비하지 못했습니다. 최초 드라이버 다운로드가 허용되는지와 Edge 설치·버전을 회사 담당자에게 확인해주세요.'
+    return '[EDGE-START] Edge가 시작되지 않았거나 시작 직후 종료됐습니다. 직원 PC의 Edge 실행·업데이트·회사 자동화 정책을 확인해주세요.'
+
 def start_edge_with_profile(baseline):
     # Preserve the approved baseline's driver/service setup, including aliases
     # imported with `from selenium.webdriver import Edge`. Only startup options
     # change; cookies and passwords are managed by Edge, never exported here.
     from selenium import webdriver
-    directory = edge_profile_directory()
+    try:
+        directory = edge_profile_directory()
+    except PermissionError:
+        raise SafetyStop('[EDGE-PROFILE-ACCESS] EAS 로그인 프로필 폴더를 만들 수 없습니다. Windows 사용자 폴더 접근 권한을 확인해주세요.') from None
+    failure = []
     original_init = webdriver.Edge.__init__
 
     def persistent_init(driver, options=None, *args, **kwargs):
@@ -74,11 +95,18 @@ def start_edge_with_profile(baseline):
                 '--guest', '--guest-profile'))]
         options.add_argument(f'--user-data-dir={directory}')
         options.add_argument('--profile-directory=Default')
-        return original_init(driver, options, *args, **kwargs)
+        try:
+            return original_init(driver, options, *args, **kwargs)
+        except Exception as error:
+            failure.append(edge_failure_message(error))
+            raise
 
     # Scope the override to synchronous startup and always restore Selenium.
     with patch.object(webdriver.Edge, '__init__', persistent_init):
-        return baseline_call(baseline.start_edge)
+        driver = baseline_call(baseline.start_edge)
+    if driver is None:
+        raise SafetyStop(failure[-1] if failure else '[EDGE-START] Edge 실행이 완료되지 않았습니다. 직원 PC의 설치 버전과 Edge 준비 상태를 확인해주세요.')
+    return driver
 
 
 def only_visible(root, by, selector, description):
@@ -225,7 +253,7 @@ def read_detail(driver, payload, proof):
     observed = {"registration": values["registration"], "merchantName": values["merchantName"]}
     for key, label in LABELS.items():
         # Labels were supplied by the user in actual th/td rows. No MUI hashes.
-        xpath = f"//tr[th//*[normalize-space(.)='{label}']]/td"
+        xpath = detail_label_xpath(label)
         cell = only_visible(driver, "xpath", xpath, f"상세 {label}")
         raw = cell.text.strip()
         if key == "receiptDate":
@@ -242,36 +270,86 @@ def read_detail(driver, payload, proof):
     return driver, observed
 
 
-def detail_ready(driver):
-    """URL changes before React finishes loading the detail and its three fields."""
+
+def detail_label_xpath(label):
+    return f"//tr[th[normalize-space(.)='{label}' or .//*[normalize-space(.)='{label}']]]/td"
+
+
+def detail_readiness_issue(driver):
     from selenium.common.exceptions import StaleElementReferenceException
     guard_screen(driver, detail=True)
     try:
         for label in LABELS.values():
-            xpath = f"//tr[th//*[normalize-space(.)='{label}']]/td"
-            cells = [e for e in driver.find_elements('xpath', xpath) if e.is_displayed()]
+            cells = [e for e in driver.find_elements('xpath', detail_label_xpath(label)) if e.is_displayed()]
             require(len(cells) <= 1, f'상세 {label} 항목이 여러 개라 입력하지 않습니다.')
             if not cells or not cells[0].text.strip():
-                return False
-        for selector in INPUTS.values():
+                return f'상세 {label} 항목이 아직 표시되지 않았습니다.'
+        for key, selector in INPUTS.items():
+            label = {'employeeName': '실사용자', 'attendeeCount': '인원수', 'purpose': '목적'}[key]
             fields = [e for e in driver.find_elements('css selector', selector) if e.is_displayed()]
-            require(len(fields) <= 1, '사용내역 입력란이 여러 개라 입력하지 않습니다.')
-            if not fields or not fields[0].is_enabled() or fields[0].get_attribute('readonly'):
-                return False
-        return True
+            require(len(fields) <= 1, f'{label} 입력란이 여러 개라 입력하지 않습니다.')
+            if not fields:
+                return f'{label} 입력란이 보이지 않습니다. 직원 계정의 전표 화면과 입력 권한을 확인해주세요.'
+            if not fields[0].is_enabled() or fields[0].get_attribute('readonly') is not None:
+                return f'{label} 입력란이 읽기 전용입니다. 전표 처리 상태와 직원 계정의 수정 권한을 확인해주세요.'
+        return None
     except StaleElementReferenceException:
-        return False
+        return '상세 화면을 새로 그리는 중입니다.'
 
 
-def wait_detail_ready(driver, timeout=20):
+def detail_ready(driver):
+    return detail_readiness_issue(driver) is None
+
+
+def wait_detail_ready(driver, timeout=45):
     from selenium.webdriver.support.ui import WebDriverWait
     from selenium.common.exceptions import TimeoutException
+    last = ['상세 화면 로딩 상태를 확인해주세요.']
+    def ready(current):
+        issue = detail_readiness_issue(current)
+        if issue:
+            last[0] = issue
+        return issue is None
     try:
-        WebDriverWait(driver, timeout, poll_frequency=0.2).until(detail_ready)
+        WebDriverWait(driver, timeout, poll_frequency=0.2).until(ready)
     except TimeoutException:
-        raise SafetyStop('상세 거래 정보 또는 실사용자·인원수·목적 입력란이 준비되지 않았습니다. '
-                         '입력란 잠금 여부와 상세화면 로딩 상태를 확인해주세요.') from None
+        raise SafetyStop(last[0] + ' 준비되지 않은 입력란에는 입력하지 않았습니다.') from None
 
+
+def wait_detail_page(driver, previous_handles, original_handle, timeout=45):
+    """Only the clicked tab and tabs newly opened by that click are candidates."""
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.common.exceptions import TimeoutException, NoSuchWindowException
+    def expected(url):
+        try:
+            p = urlsplit(url)
+            return p.scheme == 'https' and p.hostname == 'eas.gsenc.com' and p.port in (None, 443) and p.path == '/ep/cc/vouc/EpCcVouc0002'
+        except ValueError:
+            return False
+    def locate(current):
+        handles = current.window_handles
+        require(handles, 'EAS Edge 창이 닫혔습니다. 다시 연결해주세요.')
+        candidates = []
+        for handle in handles:
+            if handle != original_handle and handle in previous_handles:
+                continue
+            try:
+                current.switch_to.window(handle)
+                if expected(current.current_url):
+                    candidates.append(handle)
+            except NoSuchWindowException:
+                continue
+        require(len(candidates) <= 1, '상세 화면이 여러 개 열려 대상을 확정하지 못했습니다. 입력하지 않습니다.')
+        if candidates:
+            current.switch_to.window(candidates[0])
+            return True
+        if original_handle in handles:
+            current.switch_to.window(original_handle)
+        return False
+    try:
+        WebDriverWait(driver, timeout, poll_frequency=0.2).until(locate)
+    except TimeoutException:
+        raise SafetyStop('선택한 거래의 EAS 상세 화면을 찾지 못했습니다. 새 창·팝업 차단이나 화면 이동 상태를 확인해주세요.') from None
 
 def show_stop(message):
     """Expose safe failure reasons before the preserved browser-maintenance loop."""
@@ -368,9 +446,11 @@ def connect(payload, baseline, confirm=confirm_desktop, on_stop=None):
         )), "사용자가 거래 열기를 취소했습니다.")
         proof, date_cell = capture_registration(driver, payload, candidate)
         # Only this verified date cell is double-clicked, never 확인/전송/저장.
+        previous_handles = set(driver.window_handles)
+        original_handle = driver.current_window_handle
         ActionChains(driver).double_click(date_cell).perform()
         stage = '상세 거래 정보·입력란 로딩 대기'
-        WebDriverWait(driver, 20).until(lambda current: "/ep/cc/vouc/EpCcVouc0002" == urlsplit(current.current_url).path)
+        wait_detail_page(driver, previous_handles, original_handle)
         wait_detail_ready(driver)
         validate_handoff(payload)
         stage = '상세 승인번호·일자·금액 대조'
@@ -391,12 +471,12 @@ def connect(payload, baseline, confirm=confirm_desktop, on_stop=None):
         print("3개 입력란의 값 유지 확인 완료. React 검증 표시와 전체 거래를 직접 확인 후 직접 저장하세요.")
         return 0
     except SafetyStop as error:
-        report_stop(f'중단 단계: {stage}\n{error}\n\n저장하지 않았습니다. 현재 EAS 화면을 유지합니다.', on_stop)
+        report_stop(f'프로그램 버전: {getattr(baseline, "app_version", "소스 실행")}\n중단 단계: {stage}\n{error}\n\n저장하지 않았습니다. 현재 EAS 화면을 유지합니다.', on_stop)
         return 1
     except KeyboardInterrupt:
         raise
     except Exception as error:
-        report_stop(f'중단 단계: {stage}\n화면 또는 실행 환경 오류 ({type(error).__name__}).\n'
+        report_stop(f'프로그램 버전: {getattr(baseline, "app_version", "소스 실행")}\n중단 단계: {stage}\n화면 또는 실행 환경 오류 ({type(error).__name__}).\n'
                     '일부 입력이 남았을 수 있으니 직접 확인하세요. 저장하지 않았습니다.', on_stop)
         return 1
     finally:

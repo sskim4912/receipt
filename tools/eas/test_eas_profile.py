@@ -61,6 +61,27 @@ class ProfileTests(unittest.TestCase):
                 start_edge_with_profile(SimpleNamespace(start_edge=fail))
             self.assertIs(webdriver.Edge.__init__, original)
 
+    def test_swallowed_driver_errors_are_classified_without_private_details(self):
+        from selenium.common.exceptions import NoSuchDriverException, SessionNotCreatedException
+        cases = [(NoSuchDriverException('unable to obtain driver https://private/sso?ticket=secret'), 'EDGE-DRIVER'),
+                 (SessionNotCreatedException('user data directory is already in use'), 'EDGE-PROFILE'),
+                 (SessionNotCreatedException('only supports Edge version 100'), 'EDGE-VERSION'),
+                 (PermissionError('access is denied secret-path'), 'EDGE-POLICY')]
+        with tempfile.TemporaryDirectory() as root, patch.dict(os.environ, {'LOCALAPPDATA': root}):
+            for error, code in cases:
+                def swallowed():
+                    try:
+                        return webdriver.Edge()
+                    except Exception:
+                        return None
+                with patch.object(webdriver.Edge, '__init__', side_effect=error) as constructor:
+                    with self.assertRaises(SafetyStop) as stop:
+                        start_edge_with_profile(SimpleNamespace(start_edge=swallowed))
+                    self.assertIs(webdriver.Edge.__init__, constructor)
+                self.assertIn(code, str(stop.exception))
+                self.assertNotIn('secret', str(stop.exception))
+                self.assertNotIn('https://', str(stop.exception))
+
     def test_missing_windows_directory_does_not_launch_temporary_browser(self):
         with patch.dict(os.environ, {'LOCALAPPDATA': ''}):
             with self.assertRaises(SafetyStop):

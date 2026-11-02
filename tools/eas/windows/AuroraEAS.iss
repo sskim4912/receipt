@@ -7,8 +7,9 @@
 #endif
 [Setup]
 AppId={{9A780581-58B0-4AA8-8726-1EAD93477D83}
+AppMutex=Local\AuroraEASConnectionV1
 AppName=Aurora EAS
-AppVersion=1.2.1
+AppVersion=1.2.2
 DefaultDirName={localappdata}\AuroraEAS\DesktopApp
 DefaultGroupName=Aurora EAS
 PrivilegesRequired=lowest

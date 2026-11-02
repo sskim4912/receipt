@@ -72,6 +72,9 @@ class Element:
 
 
 class Switch:
+    def window(self, handle):
+        pass
+
     def default_content(self):
         pass
 
@@ -89,6 +92,8 @@ class Driver:
         self.dom = self.list
         self.current_url = "https://eas.gsenc.com/ep/cc/vouc/EpCcVouc0001"
         self.switch_to = Switch()
+        self.window_handles = ["main"]
+        self.current_window_handle = "main"
         self.edited, self.clicked = [], []
 
     def open_detail(self):
@@ -387,6 +392,45 @@ class BridgeTests(unittest.TestCase):
         self.assertEqual(result, 1)
         self.assertNotIn("empCnt", driver.edited)
         self.assertNotIn("save", driver.clicked)
+
+
+class EmployeeCompatibilityTests(unittest.TestCase):
+    def test_direct_text_headers_and_readonly_reason(self):
+        from eas_receipt_bridge import detail_readiness_issue
+        driver = Driver()
+        driver.open_detail()
+        for header in driver.detail.xpath('//th'):
+            text = header.text_content()
+            header.clear()
+            header.text = text
+        self.assertTrue(detail_ready(driver))
+        driver.detail.xpath('//input[@name="useName"]')[0].set('readonly', '')
+        self.assertIn('실사용자 입력란이 읽기 전용', detail_readiness_issue(driver))
+        self.assertFalse(driver.edited)
+
+    def test_new_detail_tab_ignores_preexisting_detail(self):
+        from types import SimpleNamespace
+        from eas_receipt_bridge import wait_detail_page
+        urls = {'main': 'https://eas.gsenc.com/ep/cc/vouc/EpCcVouc0001',
+                'old': 'https://eas.gsenc.com/ep/cc/vouc/EpCcVouc0002',
+                'new': 'https://eas.gsenc.com/ep/cc/vouc/EpCcVouc0002'}
+        driver = SimpleNamespace(window_handles=list(urls), current_url=urls['main'])
+        selected = []
+        def switch(handle):
+            selected.append(handle)
+            driver.current_url = urls[handle]
+        driver.switch_to = SimpleNamespace(window=switch)
+        wait_detail_page(driver, ['main', 'old'], 'main', timeout=0)
+        self.assertEqual(selected[-1], 'new')
+
+    def test_multiple_new_detail_tabs_stop(self):
+        from types import SimpleNamespace
+        from eas_receipt_bridge import wait_detail_page
+        driver = SimpleNamespace(window_handles=['main', 'one', 'two'],
+                                 current_url='https://eas.gsenc.com/ep/cc/vouc/EpCcVouc0002')
+        driver.switch_to = SimpleNamespace(window=lambda _: None)
+        with self.assertRaisesRegex(SafetyStop, '여러 개'):
+            wait_detail_page(driver, ['main'], 'main', timeout=0)
 
 
 if __name__ == "__main__":

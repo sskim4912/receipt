@@ -16,10 +16,10 @@ InstallDir "$LOCALAPPDATA\AuroraEAS\DesktopApp"
 SetCompressor /SOLID lzma
 ShowInstDetails show
 ShowUninstDetails show
-VIProductVersion "1.2.1.0"
+VIProductVersion "1.2.2.0"
 VIAddVersionKey "ProductName" "Aurora EAS"
 VIAddVersionKey "FileDescription" "Aurora EAS per-user setup"
-VIAddVersionKey "FileVersion" "1.2.1.0"
+VIAddVersionKey "FileVersion" "1.2.2.0"
 VIAddVersionKey "LegalCopyright" "Aurora EAS"
 !define MUI_ABORTWARNING
 !define MUI_FINISHPAGE_RUN "$INSTDIR\AuroraEAS.exe"
@@ -54,6 +54,12 @@ Function .onInit
   MessageBox MB_OK|MB_ICONSTOP "Microsoft Edge가 필요합니다. 사내 담당자에게 Edge 설치를 요청한 뒤 다시 실행해주세요."
   Abort
   edge_ok:
+  System::Call 'kernel32::OpenMutexW(i 0x00100000, i 0, w "Local\AuroraEASConnectionV1") p.r0'
+  ${If} $0 != 0
+    System::Call 'kernel32::CloseHandle(p r0)'
+    MessageBox MB_OK|MB_ICONSTOP "EAS 보조 프로그램이 실행 중입니다. 작성 중인 내용을 확인하고 EAS Edge와 보조 프로그램을 종료한 뒤 설치해주세요. 실행 중인 앱을 일부만 교체하지 않습니다."
+    Abort
+  ${EndIf}
 FunctionEnd
 
 Section "Aurora EAS"
@@ -66,7 +72,7 @@ Section "Aurora EAS"
   WriteRegStr HKCU "Software\Classes\aurora-eas" "URL Protocol" ""
   WriteRegStr HKCU "Software\Classes\aurora-eas\shell\open\command" "" '$\"$INSTDIR\AuroraEAS.exe$\" $\"%1$\"'
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\AuroraEAS" "DisplayName" "Aurora EAS"
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\AuroraEAS" "DisplayVersion" "1.2.1"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\AuroraEAS" "DisplayVersion" "1.2.2"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\AuroraEAS" "UninstallString" '$\"$INSTDIR\Uninstall.exe$\"'
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\AuroraEAS" "QuietUninstallString" '$\"$INSTDIR\Uninstall.exe$\" /S'
   WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\AuroraEAS" "NoModify" 1
