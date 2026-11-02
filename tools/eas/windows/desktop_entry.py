@@ -9,7 +9,7 @@ from eas_startup import install_fast_startup
 from eas_session import run_desktop_session, self_test_pipe
 from eas_assistant import SafetyStop
 
-APP_VERSION = '1.2.2'
+APP_VERSION = '1.2.3'
 BASELINE_SHA256 = 'd66a47a6c4ea3094cc3dc2ec8c39bd57601cda3b24eac2ef89acc6e3001e3186'
 
 

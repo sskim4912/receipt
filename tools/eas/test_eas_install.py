@@ -111,7 +111,7 @@ class InstallTests(unittest.TestCase):
             interpreter = installer.prepare_runtime(target)
             self.assertEqual(interpreter, (target / '.venv/Scripts/python.exe').resolve())
             self.assertEqual(run.call_args_list[0].args[0][1:3], ['-m', 'venv'])
-            self.assertEqual(run.call_args_list[1].args[0], [str(target / '.venv/Scripts/python.exe'), '-m', 'pip', 'install', 'selenium==4.27.1'])
+            self.assertEqual(run.call_args_list[1].args[0], [str(target / '.venv/Scripts/python.exe'), '-m', 'pip', 'install', 'selenium==4.52.0'])
             self.assertNotIn('shell', run.call_args_list[1].kwargs)
 
 

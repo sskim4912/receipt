@@ -1,10 +1,10 @@
 export const EAS_INSTALLER = {
   fileName: 'AuroraEAS-Setup.zip',
-  path: '/downloads/AuroraEAS-Setup.zip?v=b6a36734556e',
+  path: '/downloads/AuroraEAS-Setup.zip?v=f5066b8b1424',
   fallback:
     'https://raw.githubusercontent.com/sskim4912/receipt/main/public/downloads/AuroraEAS-Setup.zip',
-  size: 18268742,
-  sha256: 'b6a36734556ea04537067a9b6628f0d072a2d6be88c6eeb03e9f55672ad0a180',
+  size: 20177534,
+  sha256: 'f5066b8b14241f7aaad5c2278ffdd08224e4ef3e74bde69752d8506b2bbd6702',
 };
 
 export async function fetchEasInstaller(fetcher = fetch) {

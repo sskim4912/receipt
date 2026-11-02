@@ -77,7 +77,7 @@ def prepare_runtime(target):
         print('Preparing a private Python environment. Please wait...')
         subprocess.run([sys.executable, '-m', 'venv', str(environment)], check=True,
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=120, creationflags=flags)
-        subprocess.run([str(python), '-m', 'pip', 'install', 'selenium==4.27.1'], check=True,
+        subprocess.run([str(python), '-m', 'pip', 'install', 'selenium==4.52.0'], check=True,
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=180, creationflags=flags)
     except (OSError, subprocess.SubprocessError):
         raise ValueError('자동 Python 환경 준비에 실패했습니다. 회사 네트워크 정책을 확인하거나 기존 Selenium 실행 환경으로 설치 프로그램을 실행해주세요.') from None

@@ -87,7 +87,7 @@ export function EasConnection({ receipt, onClose }) {
           </button>
         )}
         <p className="muted eas-launch-hint">설치한 PC에서는 바로 연결하세요.</p>
-        <p className="eas-first-label">처음 사용하는 PC인가요?</p>
+        <p className="eas-first-label">처음 사용하거나 업데이트가 필요한가요?</p>
         <a
           className="button full"
           href={EAS_INSTALLER.path}
@@ -116,7 +116,7 @@ export function EasConnection({ receipt, onClose }) {
             </span>
             <div>
               <strong>1. 설치 파일 다운로드</strong>
-              <p>처음 사용하는 PC에서는 ‘PC 자동 설치 다운로드’를 눌러 ZIP 파일을 받으세요.</p>
+              <p>‘PC 자동 설치 다운로드’에서 최신 설치본 1.2.3을 받으세요. 기존 PC도 연결 오류가 나면 업데이트해주세요.</p>
             </div>
           </li>
           <li>
