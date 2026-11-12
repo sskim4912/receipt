@@ -1,0 +1,26 @@
+{
+  "id": "./",
+  "name": "영수증 관리",
+  "short_name": "영수증 관리",
+  "description": "GS건설 Aurora Project 영수증 등록 및 관리",
+  "lang": "ko",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#005bab",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
