@@ -6,8 +6,8 @@
   "vars": {
     "GOOGLE_CLOUD_PROJECT_ID": "api-for-anythingllm-1",
     "GCS_BUCKET_NAME": "sskim4912_bucket1",
-    "VERTEX_AI_LOCATION": "us-central1",
-    "VERTEX_AI_MODEL": "gemini-2.5-flash-lite",
+    "VERTEX_AI_LOCATION": "global",
+    "VERTEX_AI_MODEL": "gemini-3.5-flash-lite",
   },
   "assets": {
     "directory": "./docs",

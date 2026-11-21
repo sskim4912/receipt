@@ -343,12 +343,14 @@ async function callGoogleVision(token, content) {
 
 async function classifyReceipt(token, env, ocrText) {
   const project = String(env.GOOGLE_CLOUD_PROJECT_ID || '');
-  const location = String(env.VERTEX_AI_LOCATION || 'us-central1').toLowerCase();
-  const model = String(env.VERTEX_AI_MODEL || 'gemini-2.5-flash-lite');
+  const location = String(env.VERTEX_AI_LOCATION || 'global').toLowerCase();
+  const model = String(env.VERTEX_AI_MODEL || 'gemini-3.5-flash-lite');
   if (!/^[a-z0-9-]+$/.test(location)) throw new Error('VERTEX_AI_LOCATION 값이 올바르지 않습니다.');
   if (!/^[a-zA-Z0-9._-]+$/.test(model)) throw new Error('VERTEX_AI_MODEL 값이 올바르지 않습니다.');
 
-  const endpoint = `https://${location}-aiplatform.googleapis.com/v1/projects/${encodeURIComponent(
+  const host =
+    location === 'global' ? 'aiplatform.googleapis.com' : `${location}-aiplatform.googleapis.com`;
+  const endpoint = `https://${host}/v1/projects/${encodeURIComponent(
     project,
   )}/locations/${encodeURIComponent(location)}/publishers/google/models/${encodeURIComponent(
     model,
