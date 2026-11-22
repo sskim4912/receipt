@@ -99,7 +99,7 @@ test('중복키는 날짜·금액·승인번호 기준, 실제 승인번호 없�
   assert.equal(await duplicateKey({ ...r, approvalState: 'absent', approvalNumber: null }), null);
 });
 test('필터·CSV 현재 결과·BOM·수식 및 따옴표 방어', () => {
-  const r = { ...validateInput(core, extras), status: 'manual_review', memo: '=HYPERLINK("x")' };
+  const r = { ...validateInput(core, extras), status: 'manual_review', memo: '=HYPERLINK("x,y")' };
   const filtered = filterReceipts([r, { ...r, employeeName: '다른 사용자' }], {
     start: '2026-10-01',
     end: '2026-10-31',
@@ -109,8 +109,18 @@ test('필터·CSV 현재 결과·BOM·수식 및 따옴표 방어', () => {
   assert.equal(filtered.length, 1);
   const text = csv(filtered);
   assert.equal(text.charCodeAt(0), 0xfeff);
-  assert.match(text, /수기입력·확인필요/);
-  assert.match(text, /'=HYPERLINK\(""x""\)/);
+  const [header, row] = text
+    .slice(1)
+    .split('\r\n')
+    .map((line) =>
+      Array.from(line.matchAll(/"((?:[^"]|"")*)"(?:,|$)/g), ([, field]) =>
+        field.replaceAll('""', '"'),
+      ),
+    );
+  assert.equal(row.length, header.length);
+  assert.equal(row[header.indexOf('등록방식')], '수기입력');
+  assert.equal(row[header.indexOf('처리상태')], '확인필요');
+  assert.equal(row[header.indexOf('메모')], `'=HYPERLINK("x,y")`);
   assert.equal(filterReceipts(filtered, { start: '2026-11-01' }).length, 0);
 });
 test('수정용 입력과 상태 전환', () => {
