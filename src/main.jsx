@@ -388,8 +388,9 @@ function ExtraFields({ value, onChange, includeMemo = false }) {
     </>
   );
 }
-function PhotoCapture({ photo, camera, onChange, onError, ocrMessage }) {
+function PhotoCapture({ photo, onChange, ocrMessage, disabled }) {
   const [large, setLarge] = useState(false);
+  const camera = useRef(null);
   return (
     <div className="photo-panel">
       {photo ? (
@@ -418,20 +419,17 @@ function PhotoCapture({ photo, camera, onChange, onError, ocrMessage }) {
         accept="image/*"
         capture="environment"
         aria-label="영수증 사진 촬영"
-        onChange={async (e) => {
+        disabled={disabled}
+        onChange={(e) => {
           const file = e.target.files?.[0];
           e.target.value = '';
-          if (!file) return;
-          try {
-            onChange(await inspectPhoto(file));
-          } catch (error) {
-            onError(error.message);
-          }
+          if (file) onChange(file);
         }}
       />
       <button
         className="button secondary full photo-capture-button"
         type="button"
+        disabled={disabled}
         onClick={() => camera.current?.click()}
       >
         <Icon name="camera" size={19} />
@@ -442,7 +440,7 @@ function PhotoCapture({ photo, camera, onChange, onError, ocrMessage }) {
           {ocrMessage}
         </p>
       )}
-      {large && (
+      {large && photo && (
         <Modal title="현재 영수증 사진" wide onClose={() => setLarge(false)}>
           <img className="modal-image" src={photo.url} alt="현재 영수증 확대" />
         </Modal>
@@ -450,58 +448,101 @@ function PhotoCapture({ photo, camera, onChange, onError, ocrMessage }) {
     </div>
   );
 }
+const EMPTY_DRAFT = {
+  core: EMPTY_CORE,
+  extras: EMPTY_EXTRAS,
+  ocrFields: [],
+  ocrLocation: false,
+  inputSource: 'manual',
+};
+const OCR_REQUIRED_FIELDS = ['merchantName', 'amount', 'receiptDate'];
+
 function App() {
   const [screen, setScreen] = useState('manual'),
     [login, setLogin] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
-    [core, setCore] = useState({ ...EMPTY_CORE }),
-    [extras, setExtras] = useState({ ...EMPTY_EXTRAS }),
+    [draft, setDraft] = useState(EMPTY_DRAFT),
+    [inspectingPhoto, setInspectingPhoto] = useState(false),
     [photo, setPhoto] = useState(null),
     [ocrMessage, setOcrMessage] = useState(''),
-    [inputSource, setInputSource] = useState('manual'),
     [saved, setSaved] = useState(null),
     [deleteDraft, setDeleteDraft] = useState(false);
-  const camera = useRef(),
-    lock = useRef(false),
+  const { core, extras, inputSource } = draft;
+  const lock = useRef(false),
+    photoSelection = useRef(0),
+    attachmentKey = useRef(null),
+    attachmentCleanup = useRef(null),
     ocrRequest = useRef(null),
     attachmentUpload = useRef(null),
     coreEditVersion = useRef(0),
     attachmentRequest = useRef(0),
     requestId = useRef(crypto.randomUUID());
+  const photoUrl = photo?.url;
   useEffect(
     () => () => {
-      if (photo) URL.revokeObjectURL(photo.url);
+      if (photoUrl) URL.revokeObjectURL(photoUrl);
     },
-    [photo],
+    [photoUrl],
   );
   useEffect(() => () => ocrRequest.current?.abort(), []);
   function reset() {
+    photoSelection.current++;
     attachmentRequest.current++;
     ocrRequest.current?.abort();
     ocrRequest.current = null;
     attachmentUpload.current = null;
-    if (photo?.attachment?.key) deleteReceiptAttachment(photo.attachment.key).catch(() => {});
+    if (attachmentKey.current) deleteReceiptAttachment(attachmentKey.current).catch(() => {});
+    attachmentKey.current = null;
+    attachmentCleanup.current = null;
+    setInspectingPhoto(false);
     setScreen('manual');
     setPhoto(null);
     setOcrMessage('');
-    setInputSource('manual');
-    setCore({ ...EMPTY_CORE });
-    setExtras({ ...EMPTY_EXTRAS });
+    setDraft(EMPTY_DRAFT);
     setError('');
     setSaved(null);
     requestId.current = crypto.randomUUID();
   }
-  async function handlePhoto(value) {
+  async function handlePhoto(file) {
+    if (lock.current) return;
+    const selection = ++photoSelection.current;
+    setInspectingPhoto(true);
+    let value;
+    try {
+      value = await inspectPhoto(file);
+    } catch (error) {
+      if (selection === photoSelection.current) setError(error.message);
+      return;
+    } finally {
+      if (selection === photoSelection.current) setInspectingPhoto(false);
+    }
+    if (selection !== photoSelection.current) {
+      URL.revokeObjectURL(value.url);
+      return;
+    }
+
     const generation = ++attachmentRequest.current;
     const coreEditVersionAtStart = coreEditVersion.current;
-    const coreWasEmptyAtStart = ['merchantName', 'amount', 'receiptDate'].every(
-      (key) => !String(core[key] || '').trim(),
-    );
-    const previousAttachment = photo?.attachment?.key;
     ocrRequest.current?.abort();
+    const previousKey = attachmentKey.current;
+    if (previousKey) {
+      const deletion = deleteReceiptAttachment(previousKey).catch(() => {});
+      attachmentCleanup.current = Promise.all([attachmentCleanup.current, deletion]);
+    }
+    attachmentKey.current = null;
     setPhoto({ ...value, attachment: null, uploadState: 'uploading' });
-    setInputSource('manual');
+    setDraft((current) => ({
+      ...current,
+      core: {
+        ...current.core,
+        ...Object.fromEntries(current.ocrFields.map((key) => [key, EMPTY_CORE[key]])),
+      },
+      extras: current.ocrLocation ? { ...current.extras, location: '' } : current.extras,
+      ocrFields: [],
+      ocrLocation: false,
+      inputSource: 'manual',
+    }));
     setError('');
     const controller = new AbortController();
     ocrRequest.current = controller;
@@ -514,11 +555,10 @@ function App() {
           deleteReceiptAttachment(attachment.key).catch(() => {});
           return null;
         }
+        attachmentKey.current = attachment.key;
         setPhoto((current) =>
           current?.file === value.file ? { ...current, attachment, uploadState: 'saved' } : current,
         );
-        if (previousAttachment && previousAttachment !== attachment.key)
-          deleteReceiptAttachment(previousAttachment).catch(() => {});
         return attachment;
       },
       (uploadError) => {
@@ -526,7 +566,6 @@ function App() {
           setPhoto((current) =>
             current?.file === value.file ? { ...current, uploadState: 'error' } : current,
           );
-          if (previousAttachment) deleteReceiptAttachment(previousAttachment).catch(() => {});
           setError(uploadError?.message || '영수증 사진을 서버에 저장하지 못했습니다.');
         }
         return null;
@@ -537,30 +576,28 @@ function App() {
     try {
       const recognized = await recognizeReceipt(value.file, { signal: controller.signal });
       if (generation !== attachmentRequest.current || controller.signal.aborted) return;
-      const extracted = Object.entries(recognized).filter(([, v]) => v);
-      if (
-        recognized.merchantName &&
-        recognized.amount &&
-        recognized.receiptDate &&
-        coreWasEmptyAtStart &&
-        coreEditVersion.current === coreEditVersionAtStart
-      )
-        setInputSource('ocr');
+      const extracted = Object.values(recognized).some(Boolean);
+      const coreWasEdited = coreEditVersion.current !== coreEditVersionAtStart;
       const { location, ...coreValues } = recognized;
-      setCore((current) => {
+      setDraft((current) => {
         const extractedCore = Object.fromEntries(
-          Object.entries(coreValues).filter(([key, fieldValue]) => fieldValue && !current[key]),
+          Object.entries(coreValues).filter(([key, fieldValue]) => fieldValue && !current.core[key]),
         );
+        if (extractedCore.approvalNumber) extractedCore.approvalState = 'present';
+        const ocrLocation = Boolean(location && !current.extras.location);
         return {
-          ...current,
-          ...extractedCore,
-          ...(extractedCore.approvalNumber ? { approvalState: 'present' } : {}),
+          core: { ...current.core, ...extractedCore },
+          extras: ocrLocation ? { ...current.extras, location } : current.extras,
+          ocrFields: Object.keys(extractedCore),
+          ocrLocation,
+          inputSource:
+            !coreWasEdited && OCR_REQUIRED_FIELDS.every((key) => extractedCore[key])
+              ? 'ocr'
+              : 'manual',
         };
       });
-      if (location)
-        setExtras((current) => ({ ...current, location: current.location || location }));
       setOcrMessage(
-        extracted.length
+        extracted
           ? '인식된 항목을 빈 입력란에 넣었습니다.\n원본과 대조해 확인해주세요.'
           : '읽을 수 있는 항목을 찾지 못했습니다. 이상한 값은 넣지 않았으니 직접 입력해주세요.',
       );
@@ -585,12 +622,23 @@ function App() {
     setError('');
   }
   function updateCore(next) {
-    const recognitionFields = ['merchantName', 'amount', 'receiptDate'];
-    if (recognitionFields.some((key) => next[key] !== core[key])) {
-      coreEditVersion.current++;
-      setInputSource('manual');
-    }
-    setCore(next);
+    const changed = Object.keys(next).filter((key) => next[key] !== core[key]);
+    const primaryEdited = OCR_REQUIRED_FIELDS.some((key) => changed.includes(key));
+    if (primaryEdited) coreEditVersion.current++;
+    setDraft((current) => ({
+      ...current,
+      core: { ...current.core, ...Object.fromEntries(changed.map((key) => [key, next[key]])) },
+      ocrFields: current.ocrFields.filter((key) => !changed.includes(key)),
+      inputSource: primaryEdited ? 'manual' : current.inputSource,
+    }));
+  }
+  function updateExtras(next) {
+    const changed = Object.keys(next).filter((key) => next[key] !== extras[key]);
+    setDraft((current) => ({
+      ...current,
+      extras: { ...current.extras, ...Object.fromEntries(changed.map((key) => [key, next[key]])) },
+      ocrLocation: current.ocrLocation && !changed.includes('location'),
+    }));
   }
   function focusEntryField(name) {
     if (!name) return;
@@ -603,6 +651,7 @@ function App() {
   }
   function confirm(e) {
     e.preventDefault();
+    if (inspectingPhoto) return;
     const requiredEntries = [
       { name: 'merchantName', label: '업체명', value: core.merchantName },
       { name: 'amount', label: '영수금액', value: core.amount },
@@ -635,7 +684,7 @@ function App() {
   } catch {}
   async function register(e) {
     e.preventDefault();
-    if (lock.current || !valid) return;
+    if (lock.current || !valid || inspectingPhoto) return;
     lock.current = true;
     setBusy(true);
     setError('');
@@ -650,12 +699,15 @@ function App() {
               receiptId: requestId.current,
             }));
         }
+        // A replacement can reuse a previously finalized filename.
+        if (attachmentCleanup.current) await attachmentCleanup.current;
         attachment = await finalizeReceiptAttachment(attachment.key, {
           receiptId: requestId.current,
           merchantName: core.merchantName,
           amount: core.amount,
           receiptDate: core.receiptDate,
         });
+        attachmentKey.current = attachment.key;
         setPhoto((current) =>
           current ? { ...current, attachment, uploadState: 'saved' } : current,
         );
@@ -673,7 +725,11 @@ function App() {
       if (!receipt)
         throw new Error('저장 결과를 확인할 수 없습니다. 입력내용을 유지한 채 다시 시도해주세요.');
       setSaved(receipt);
-      if (attachmentUpload.current?.file === photo?.file) attachmentUpload.current = null;
+      attachmentRequest.current++;
+      ocrRequest.current?.abort();
+      attachmentKey.current = null;
+      attachmentCleanup.current = null;
+      attachmentUpload.current = null;
       setPhoto(null);
       setScreen('success');
     } catch (err) {
@@ -762,9 +818,8 @@ function App() {
                   </div>
                   <PhotoCapture
                     photo={photo}
-                    camera={camera}
                     onChange={handlePhoto}
-                    onError={setError}
+                    disabled={busy}
                     ocrMessage={ocrMessage}
                   />
                 </div>
@@ -775,7 +830,7 @@ function App() {
                     <h2>필수 입력 요청 사항</h2>
                   </div>
                 </div>
-                <ExtraFields value={extras} onChange={setExtras} />
+                <ExtraFields value={extras} onChange={updateExtras} />
                 <ErrorBox message={error} />
                 <div className="confirmation-action-panel">
                   <div className="section-heading section-heading-required">
@@ -786,7 +841,7 @@ function App() {
                   </div>
                   <button
                     className="button primary full"
-                    disabled={busy || photo?.uploadState === 'uploading'}
+                    disabled={busy || inspectingPhoto || photo?.uploadState === 'uploading'}
                   >
                     <Icon name="receipt" size={19} />
                     입력 내용 확인 버튼
@@ -800,9 +855,8 @@ function App() {
               <h2>등록 내용을 확인해주세요.</h2>
               <PhotoCapture
                 photo={photo}
-                camera={camera}
                 onChange={handlePhoto}
-                onError={setError}
+                disabled={busy}
                 ocrMessage={ocrMessage}
               />
               <Summary
@@ -814,7 +868,7 @@ function App() {
                 <ErrorBox message={error} />
                 <button
                   className="button primary full"
-                  disabled={!valid || busy || photo?.uploadState === 'uploading'}
+                  disabled={!valid || busy || inspectingPhoto || photo?.uploadState === 'uploading'}
                 >
                   {busy ? '등록 중...' : '등록하기'}
                 </button>
@@ -874,11 +928,8 @@ function App() {
           onClose={() => setLogin(false)}
           onSuccess={() => {
             setLogin(false);
-            ocrRequest.current?.abort();
-            setPhoto(null);
-            setOcrMessage('');
+            reset();
             setScreen('admin');
-            setError('');
           }}
         />
       )}
