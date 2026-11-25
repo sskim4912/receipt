@@ -447,11 +447,11 @@ async function processReceipt(request, env) {
     const token = await getAccessToken(serviceAccountJson);
     const ocrText = await callGoogleVision(token, content);
     const aiValues = await classifyReceipt(token, env, ocrText);
-    const fallback = parseReceiptText(ocrText);
+    const fallback = parseReceiptText(ocrText, normalizeDate(aiValues.receiptDate));
     return json({
       merchantName: safeText(aiValues.merchantName) || fallback.merchantName,
       amount: normalizeAmount(aiValues.amount) || fallback.amount,
-      receiptDate: normalizeDate(aiValues.receiptDate) || fallback.receiptDate,
+      receiptDate: fallback.receiptDate,
       receiptTime: normalizeTime(aiValues.receiptTime),
       location: safeText(aiValues.location) || fallback.location,
       businessNumber: normalizeBusinessNumber(aiValues.businessNumber) || fallback.businessNumber || '',

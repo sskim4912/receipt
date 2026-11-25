@@ -1,15 +1,15 @@
 import { validDate } from './domain.js';
 
 function dateValues(text) {
-  const values = [];
   const re =
-    /(?<!\d)(20\d{2})\s*[-./년]\s*(\d{1,2})\s*[-./월]\s*(\d{1,2})\s*일?|(?<!\d)(20\d{2})(\d{2})(\d{2})(?!\d)/g;
-  for (const match of text.matchAll(re)) {
-    const [, y1, m1, d1, y2, m2, d2] = match;
-    const date = `${y1 || y2}-${(m1 || m2).padStart(2, '0')}-${(d1 || d2).padStart(2, '0')}`;
-    if (validDate(date) && !values.includes(date)) values.push(date);
-  }
-  return values;
+    /(?<![\d/])(?:(20\d{2})[^\S\r\n]*[-./년][^\S\r\n]*(\d{1,2})[^\S\r\n]*[-./월][^\S\r\n]*(\d{1,2})\s*일?|(20\d{2})(\d{2})(\d{2})|(\d{2})[ \t]*\/[ \t]*(\d{2})[ \t]*\/[ \t]*(\d{2}))(?![\d/])/g;
+  return Array.from(text.matchAll(re), (match) => {
+    const [, y1, m1, d1, y2, m2, d2, shortYear, shortMonth, shortDay] = match;
+    const year = y1 || y2 || `20${shortYear}`;
+    const month = (m1 || m2 || shortMonth).padStart(2, '0');
+    const day = (d1 || d2 || shortDay).padStart(2, '0');
+    return { date: `${year}-${month}-${day}`, short: Boolean(shortYear) };
+  });
 }
 
 function labeledMerchant(text) {
@@ -129,27 +129,30 @@ function labeledAmount(text) {
   return '';
 }
 
-export function parseReceiptText(text) {
+export function parseReceiptText(text, classifiedDate = '') {
   const lines = String(text || '').split(/\r?\n/);
   const labeledDateLines = lines.filter((line) =>
     /승인\s*일시|승인\s*일자|거래\s*일시|거래\s*일자|계산\s*일자|매출\s*일자|사용\s*일자|발행\s*일시/.test(
       line,
     ),
   );
-  const explicitDates = [...new Set(labeledDateLines.flatMap(dateValues))];
-  const allDates = dateValues(text);
+  const explicitDates = labeledDateLines.flatMap(dateValues);
+  const candidates = explicitDates.length ? explicitDates : dateValues(text);
+  const dates = [...new Set(candidates.map(({ date }) => date).filter(validDate))];
+  // Read year-first slash dates from the OCR text before accepting the model's interpretation.
+  const hasShortDate = candidates.some(({ short }) => short);
+  const receiptDate = hasShortDate
+    ? dates.length === 1
+      ? dates[0]
+      : ''
+    : classifiedDate || (dates.length === 1 ? dates[0] : '');
   const businessNumber = labeledBusinessNumber(text);
   const approvalNumber = labeledApprovalNumber(text);
   return {
     merchantName: labeledMerchant(text),
     amount: labeledAmount(text),
     location: labeledLocation(text),
-    receiptDate:
-      explicitDates.length === 1
-        ? explicitDates[0]
-        : explicitDates.length === 0 && allDates.length === 1
-          ? allDates[0]
-          : '',
+    receiptDate,
     ...(businessNumber ? { businessNumber } : {}),
     ...(approvalNumber ? { approvalNumber } : {}),
   };

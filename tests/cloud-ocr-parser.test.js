@@ -37,3 +37,18 @@ test('부가세만 있는 영수증에서 총액으로 오인하지 않는다', 
     receiptDate: '',
   });
 });
+
+test('두 자리 거래일시를 연·월·일 순으로 읽고 AI가 바꾼 날짜보다 우선한다', () => {
+  assert.equal(
+    parseReceiptText('거래일시: 26/11/11 19:57:50', '2011-11-26').receiptDate,
+    '2026-11-11',
+  );
+  assert.equal(parseReceiptText('승인일자: 26 / 03 / 09').receiptDate, '2026-03-09');
+  assert.equal(parseReceiptText('25/12/31 10:20:00').receiptDate, '2025-12-31');
+});
+
+test('달력에 없는 날짜와 서로 다른 두 자리 거래일시는 비워 둔다', () => {
+  assert.equal(parseReceiptText('거래일시: 26/02/30', '2026-03-02').receiptDate, '');
+  assert.equal(parseReceiptText('거래일시: 26/11/11\n거래일시: 26/11/12').receiptDate, '');
+  assert.equal(parseReceiptText('거래일시: 2026/11/11').receiptDate, '2026-11-11');
+});
