@@ -52,3 +52,14 @@ test('달력에 없는 날짜와 서로 다른 두 자리 거래일시는 비워
   assert.equal(parseReceiptText('거래일시: 26/11/11\n거래일시: 26/11/12').receiptDate, '');
   assert.equal(parseReceiptText('거래일시: 2026/11/11').receiptDate, '2026-11-11');
 });
+
+test('줄바꿈과 전각 숫자가 섞인 거래일시는 발행 날짜보다 우선한다', () => {
+  assert.equal(
+    parseReceiptText('발행일시: 2026-11-12\n[거래 일시]：\n２６／１１／１１ 19:57:50').receiptDate,
+    '2026-11-11',
+  );
+});
+
+test('짧은 카드 유효기간을 거래 날짜로 사용하지 않는다', () => {
+  assert.equal(parseReceiptText('카드 유효기간: 26/11/11').receiptDate, '');
+});

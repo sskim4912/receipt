@@ -130,14 +130,27 @@ function labeledAmount(text) {
 }
 
 export function parseReceiptText(text, classifiedDate = '') {
-  const lines = String(text || '').split(/\r?\n/);
-  const labeledDateLines = lines.filter((line) =>
-    /승인\s*일시|승인\s*일자|거래\s*일시|거래\s*일자|계산\s*일자|매출\s*일자|사용\s*일자|발행\s*일시/.test(
-      line,
-    ),
-  );
-  const explicitDates = labeledDateLines.flatMap(dateValues);
-  const candidates = explicitDates.length ? explicitDates : dateValues(text);
+  const dateText = String(text || '').normalize('NFKC');
+  const lines = dateText.split(/\r?\n/);
+  const transactionLabel =
+    /(?:승인|거래|결제|매출|사용)\s*(?:일시|일자|일)(?![가-힣])/;
+  const otherDateLabel = /(?:계산\s*일자|발행\s*일시)/;
+  const labeledDates = (label) =>
+    lines.flatMap((line, index) => {
+      const match = line.match(label);
+      if (!match) return [];
+      const value = line.slice(match.index + match[0].length).replace(/^[\s\]:]+/, '');
+      return dateValues(value || lines[index + 1] || '');
+    });
+  const transactionDates = labeledDates(transactionLabel);
+  const explicitDates = transactionDates.length ? transactionDates : labeledDates(otherDateLabel);
+  const candidates = explicitDates.length
+    ? explicitDates
+    : lines.flatMap((line) =>
+        dateValues(line).filter(({ short }) =>
+          !short || !/유효\s*기간|만료\s*(?:일|일자)|카드\s*번호|사업자\s*(?:등록\s*)?번호|전화\s*번호/.test(line),
+        ),
+      );
   const dates = [...new Set(candidates.map(({ date }) => date).filter(validDate))];
   // Read year-first slash dates from the OCR text before accepting the model's interpretation.
   const hasShortDate = candidates.some(({ short }) => short);
