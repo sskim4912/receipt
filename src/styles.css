@@ -105,13 +105,9 @@ fieldset {
 .brand {
   display: flex;
   align-items: center;
-  gap: 20px;
-}
-.gs-logo {
-  display: block;
-  width: 190px;
-  height: 76px;
-  object-fit: contain;
+  font-size: clamp(16px, 3.8vw, 28px);
+  font-weight: 800;
+  line-height: 1.2;
 }
 .header-actions {
   display: flex;
@@ -1295,13 +1291,6 @@ footer {
     height: 72px;
     padding: 0 18px;
   }
-  .brand {
-    gap: 9px;
-  }
-  .gs-logo {
-    width: 112px;
-    height: 44px;
-  }
   .admin-link {
     font-size: 12px;
     gap: 4px;
@@ -1591,13 +1580,6 @@ footer {
   .site-header {
     padding: 0 12px;
   }
-  .brand {
-    gap: 6px;
-  }
-  .gs-logo {
-    width: 92px;
-    height: 36px;
-  }
 }
 @media (prefers-reduced-motion: reduce) {
   * {
@@ -1881,10 +1863,6 @@ footer {
   .site-header {
     height: 74px;
     padding: 0 14px;
-  }
-  .gs-logo {
-    width: 108px;
-    height: 44px;
   }
   .admin-link,
   .my-receipts-link {
@@ -2405,9 +2383,6 @@ footer {
   }
   .admin-link {
     white-space: nowrap;
-  }
-  .brand {
-    gap: 9px;
   }
   .modal .form-grid {
     grid-template-columns: 1fr;

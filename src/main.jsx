@@ -33,7 +33,6 @@ import { Icon, Modal, Field, ErrorBox } from './ui.jsx';
 import { EasConnection } from './eas-connection.jsx';
 import { AdminSortButton, AdminSortHeader } from './admin-sort.jsx';
 import { ADMIN_SORT_COLUMNS, inputStatusLabel, sortAdminReceipts } from './lib/admin-sort.js';
-import gsLogo from './assets/gs-construction-logo.png';
 import './styles.css';
 const repo = new ReceiptRepository(new FirestoreRest(firebaseConfig));
 const statusKeys = Object.keys(STATUSES);
@@ -746,9 +745,9 @@ function App() {
         <button
           className="brand brand-button"
           onClick={() => window.location.reload()}
-          aria-label="페이지 새로고침"
+          aria-label="Aurora Project(충남) 페이지 새로고침"
         >
-          <img className="gs-logo" src={gsLogo} alt="GS건설" />
+          Aurora Project(충남)
         </button>
         <div className="header-actions">
           <button
